@@ -41,18 +41,24 @@ lazy val utils = (project in file("utils"))
 lazy val mediaManageState = (project in file("media-manage-state"))
 	.settings(
 		name := "media_manage_state",
+		assemblyJarName in assembly := "state.jar",
+		mainClass in assembly := Some("media.ServerState"),
 		settings
 	).dependsOn(utils % "compile->compile;test->test")
 
 lazy val mediaManagerApp = (project in file("media-manager-app"))
 	.settings(
 		name := "media_manager_app",
+		assemblyJarName in assembly := "app.jar",
+		mainClass in assembly := Some("media.ServerApp"),
 		settings
 	).dependsOn(utils % "compile->compile;test->test")
 
 lazy val mediaManagerService = (project in file("media-manager-service"))
 	.settings(
 		name := "media_manager_service",
+		assemblyJarName in assembly := "service.jar",
+		mainClass in assembly := Some("media.ServerService"),
 		settings,
 		libraryDependencies ++= httpDepend
 	).dependsOn(utils % "compile->compile;test->test")
@@ -62,9 +68,9 @@ lazy val settings = Seq(
 	scalacOptions := Information.scalacOpt,
 	javacOptions := Information.javacOpt,
 	scalaVersion in ThisBuild := Information.scala,
-	artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
-		s"${artifact.name}.${artifact.extension}"
-	}
+	// artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
+	// 	s"${artifact.name}.${artifact.extension}"
+	// }
 )
 
 lazy val httpDepend = Seq(

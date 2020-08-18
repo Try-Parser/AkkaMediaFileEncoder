@@ -1,77 +1,138 @@
 #!/bin/bash
 echo "Initialize project"
 echo ""
-echo "Commands: hint all sbt commands are valid."
-echo "- clean"
-echo "- compile"
-echo "- package"
-echo "- default = clean compile package"
-echo ""
-read -p "Please put the commands: " cmd
-echo ""
-if [ -z "$cmd" ]
-then
-	echo "Starting clean compile package project..."
-	compile=$(sbt clean package)
-else
-	echo "Starting $cmd project..."
-	compile=$(sbt $cmd)
-fi
 
-echo ""
+execState() {
+	sbt "project mediaManageState" $*
 
-test=$compile | grep "error"
-
-if [ -z "$test" ] 
-then
-	package=$cmd | grep "package"
-	if [ -z "$package" -a -z "$cmd" ]
+	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		echo "$compile"
-		echo ""
-		echo ""
-		echo "----------- Code --------------"
-		echo "700 - media-manage-state"
-		echo "070 - media-manager-app"
-		echo "007 - media-manager-service"
-		echo ""
-
-		echo "Please select combination to run eq: "
-		echo "- 770 running state and app"
-		echo ""
-		read -p "Enter combination code: " code
-
-		case $code in 
-			700 | 7)
-				echo "running state only"
-				#gnome-terminal jar "media-manage-state/target/media-manage-state.jar"
-			;;
-
-			770 | 77)
-				echo "running state and app only"
-			;;
-
-			777)
-				echo "running state, app and services"
-			;;
-
-			007)
-				echo "running service only"
-			;;
-
-			707)
-				echo "running state and service only"
-			;;
-
-			*)
-				echo "Invalid combination based on the code above." 
-				echo "- help eq: 707 = state and services | 777 = state, services, app"
-				echo ""
-			;;
-		esac
-	else
-		echo "$compile"
+		gnome-terminal -- java -jar media-manage-state/target/state.jar
 	fi
-else 
-	echo "$test" | grep --color -P "error"
-fi
+}
+
+execApp() {
+	sbt "project mediaManagerApp" $*
+
+	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
+	then
+		gnome-terminal -- java -jar media-manager-app/target/app.jar
+	fi
+}
+
+execService() {
+	sbt "project mediamanagerService" $*
+	
+	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
+	then
+		gnome-terminal -- java -jar media-manager-service/target/service.jar
+	fi
+}
+
+repo() {
+	echo "Commands: hint all sbt commands are valid."
+	echo "- clean"
+	echo "- compile"
+	echo "- test"
+	echo "- assembly"
+	echo "- default = clean compile test assembly"
+	echo ""
+
+	read -p "Please put the commands: " cmd
+	echo ""
+
+	if [ -z "$cmd" ]
+	then
+		echo "Starting clean compile package project..."
+		compileCmd="clean compile test package"
+	else
+		echo "Starting $cmd project..."
+		compileCmd=$cmd
+	fi
+
+	echo ""
+	echo ""
+	echo "----------- Code --------------"
+	echo "700 - media-manage-state"
+	echo "070 - media-manager-app"
+	echo "007 - media-manager-service"
+	echo ""
+
+	echo "Please select combination to run eq: "
+	echo "- 770 executing command clean compile test package state and app"
+	echo ""
+	read -p "Enter combination code: " code
+	echo ""
+
+	read -p "Would you like to run the module after executing the commands [Y/n]?" run
+	echo ""
+
+	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
+	then
+		compileCmd="$compileCmd assembly"
+	fi
+
+	case $code in 
+		700 | 7)
+			echo "running state only..."
+			echo ""
+			execState $compileCmd
+		;;
+
+		770 | 77)
+			echo "running state and app only..."
+			echo ""
+			execState $compileCmd
+			echo ""
+			execApp $compileCmd
+		;;
+
+		777)
+			echo "running state, app and services..."
+			echo ""
+			execState $compileCmd
+			echo ""
+			execApp $compileCmd 
+			echo ""
+			execService  $compileCmd
+		;;
+
+		007)
+			echo "running service only..."
+			echo ""
+			execService $compileCmd
+		;;
+
+		707)
+			echo "running state and service only..."
+			echo ""
+			execState $compileCmd
+			echo ""
+			execService $compileCmd
+		;;
+
+		070)
+			echo "running app only..."
+			echo ""
+			execApp $compileCmd
+		;;
+
+		077)
+			echo "running app and service only..."
+			echo ""
+			execApp $compileCmd
+			echo ""
+			execService $compileCmd
+		;;
+
+		*)
+			echo "Invalid combination based on the code above." 
+			echo "- help eq: 707 = state and services | 777 = state, services, app"
+			echo ""
+		;;
+	esac
+
+	repo
+}
+
+repo
