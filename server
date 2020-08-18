@@ -1,0 +1,77 @@
+#!/bin/bash
+echo "Initialize project"
+echo ""
+echo "Commands: hint all sbt commands are valid."
+echo "- clean"
+echo "- compile"
+echo "- package"
+echo "- default = clean compile package"
+echo ""
+read -p "Please put the commands: " cmd
+echo ""
+if [ -z "$cmd" ]
+then
+	echo "Starting clean compile package project..."
+	compile=$(sbt clean package)
+else
+	echo "Starting $cmd project..."
+	compile=$(sbt $cmd)
+fi
+
+echo ""
+
+test=$compile | grep "error"
+
+if [ -z "$test" ] 
+then
+	package=$cmd | grep "package"
+	if [ -z "$package" -a -z "$cmd" ]
+	then
+		echo "$compile"
+		echo ""
+		echo ""
+		echo "----------- Code --------------"
+		echo "700 - media-manage-state"
+		echo "070 - media-manager-app"
+		echo "007 - media-manager-service"
+		echo ""
+
+		echo "Please select combination to run eq: "
+		echo "- 770 running state and app"
+		echo ""
+		read -p "Enter combination code: " code
+
+		case $code in 
+			700 | 7)
+				echo "running state only"
+				#gnome-terminal jar "media-manage-state/target/media-manage-state.jar"
+			;;
+
+			770 | 77)
+				echo "running state and app only"
+			;;
+
+			777)
+				echo "running state, app and services"
+			;;
+
+			007)
+				echo "running service only"
+			;;
+
+			707)
+				echo "running state and service only"
+			;;
+
+			*)
+				echo "Invalid combination based on the code above." 
+				echo "- help eq: 707 = state and services | 777 = state, services, app"
+				echo ""
+			;;
+		esac
+	else
+		echo "$compile"
+	fi
+else 
+	echo "$test" | grep --color -P "error"
+fi
