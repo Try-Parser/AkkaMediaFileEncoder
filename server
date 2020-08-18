@@ -21,7 +21,8 @@ execApp() {
 }
 
 execService() {
-	sbt "project mediamanagerService" $*
+	echo ""
+	sbt "project mediaManagerService" $*
 	
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
@@ -50,8 +51,6 @@ repo() {
 		compileCmd=$cmd
 	fi
 
-	echo ""
-	echo ""
 	echo "----------- Code --------------"
 	echo "700 - media-manage-state"
 	echo "070 - media-manager-app"
@@ -131,7 +130,8 @@ repo() {
 			echo ""
 		;;
 	esac
-
+	echo ""
+	echo ""
 	repo
 }
 

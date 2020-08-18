@@ -74,6 +74,8 @@ lazy val settings = Seq(
 )
 
 lazy val httpDepend = Seq(
+	"com.typesafe.akka" %% "akka-actor-typed" % Information.akka,
+	"com.typesafe.akka" %% "akka-stream" % Information.akka,
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
-	"com.typesafe.akka" %% "akka-http-spray-json" % Information.akka
+    "com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`,
 )
