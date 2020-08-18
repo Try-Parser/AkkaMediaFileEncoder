@@ -53,7 +53,8 @@ lazy val mediaManagerApp = (project in file("media-manager-app"))
 lazy val mediaManagerService = (project in file("media-manager-service"))
 	.settings(
 		name := "media_manager_service",
-		settings
+		settings,
+		libraryDependencies ++= httpDepend
 	).dependsOn(utils % "compile->compile;test->test")
 
 lazy val settings = Seq(
@@ -66,7 +67,7 @@ lazy val settings = Seq(
 	}
 )
 
-lazy val dpdc = Seq(
+lazy val httpDepend = Seq(
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
 	"com.typesafe.akka" %% "akka-http-spray-json" % Information.akka
 )
