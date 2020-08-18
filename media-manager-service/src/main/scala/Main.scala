@@ -1,3 +1,5 @@
-object Main extends App {
+package media
+
+object ServerService extends App {
 	println("media-manager-services is running")
 }
