@@ -3,11 +3,22 @@ lazy val Information = new {
 	val org = "com.callhandling"
 	val scala = "2.13.1"
 
-	val scalacOpt = Seq("-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint")
-	val javacOpt = Seq("-Xlint:unchecked", "-Xling:deprecation")
+	val scalacOpt = Seq(
+	  "-deprecation",
+	  "-feature",
+	  "-unchecked",
+	  "-Xlint",
+	  "-Ywarn-unused:imports",
+	  "-encoding", "UTF-8"
+	)
+	val javacOpt = Seq(
+		"-Xlint:unchecked",
+		"-Xlint:deprecation"
+	)
 
 	val akka = "2.6.8"
 	val `akka-http` = "10.2.0"
+	val logback = "1.2.3"
 }
 
 lazy val `root` = (project in file("."))
@@ -59,6 +70,11 @@ lazy val mediaManagerService = (project in file("media-manager-service"))
 		name := "media_manager_service",
 		assemblyJarName in assembly := "service.jar",
 		mainClass in assembly := Some("media.ServerService"),
+		assemblyMergeStrategy in assembly := {
+			case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
+			case fileName if fileName.toLowerCase.endsWith(".conf") => MergeStrategy.concat
+			case _                                                  => MergeStrategy.first
+		},
 		settings,
 		libraryDependencies ++= httpDepend
 	).dependsOn(utils % "compile->compile;test->test")
@@ -76,6 +92,11 @@ lazy val settings = Seq(
 lazy val httpDepend = Seq(
 	"com.typesafe.akka" %% "akka-actor-typed" % Information.akka,
 	"com.typesafe.akka" %% "akka-stream" % Information.akka,
+	"com.typesafe.akka" %% "akka-cluster-sharding-typed" % Information.akka,
+	"com.typesafe.akka" %% "akka-serialization-jackson" % Information.akka,
+	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
+	"com.typesafe.akka" %% "akka-slf4j" % Information.akka,
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
-    "com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`,
+	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`,
+	"ch.qos.logback" % "logback-classic" % Information.logback,
 )

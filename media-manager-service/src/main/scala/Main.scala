@@ -1,31 +1,34 @@
 package media
 
+import scala.jdk.CollectionConverters._
+import akka.actor.AddressFromURIString
 import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.Behaviors
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Route
 
-import scala.util.{ Success, Failure }
-
-import media.routes.ServiceRoutes
+import com.typesafe.config.ConfigFactory
 
 object ServerService {
-	def main(args: Array[String]): Unit = 
-		ActorSystem[Nothing](Behaviors.setup[Nothing] { ctx => 
-			startServer(ServiceRoutes.Routes)(ctx.system)
-			Behaviors.empty
-		}, "manager-service-system")
+	def main(args: Array[String]): Unit = {
+		startNode(args.headOption)
+	}
 
-	private def startServer(routes: Route)(implicit system: ActorSystem[_]): Unit = {
-		import system.executionContext
+	private def startNode(port: Option[String]): Unit = (port match {
+		case Some(p) => Seq(p.toInt)
+		case None => (ConfigFactory.load()
+			.getStringList("akka.cluster.seed-nodes")
+			.asScala
+			.flatMap { case AddressFromURIString(s) => s.port })
+	}).foreach { nodePort =>
+		val httpPort = ("80" + nodePort.toString.takeRight(2)).toInt
 
-		Http().newServerAt("localhost", 8080).bind(routes).onComplete {
-			case Success(binding) =>
-				val localAddr = binding.localAddress
-				system.log.info("Server online at Http://{}:{}/", localAddr.getHostString, localAddr.getPort)
-			case Failure(ex) =>
-				system.log.error("Failed to bind Http endpoint, terminating system", ex)
-				system.terminate()
-		}
+		// println(s"- Akka Http Port : $httpPort")
+		// println(s"- Node Port : $nodePort")
+
+		ActorSystem[Nothing](
+			media.service.guards.ServiceGuardian(httpPort), 
+			"media-manager-service", 
+			ConfigFactory.parseString(s"""
+				akka.remote.artery.canonical.port = $nodePort
+				media-manager-service.http.port = $httpPort
+			""").withFallback(ConfigFactory.load()))
 	}
 }	
