@@ -41,11 +41,12 @@ repo() {
 
 	read -p "Please put the commands: " cmd
 	echo ""
-
+	clear
+	
 	if [ -z "$cmd" ]
 	then
 		echo "Starting clean compile package project..."
-		compileCmd="clean compile test package"
+		compileCmd="clean compile test"
 	else
 		echo "Starting $cmd project..."
 		compileCmd=$cmd

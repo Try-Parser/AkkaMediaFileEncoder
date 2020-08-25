@@ -46,7 +46,8 @@ lazy val utils = (project in file("utils"))
 		publish := {},
 		publishLocal := {},
 		publishArtifact := false,
-		skip in publish := true
+		skip in publish := true,
+		libraryDependencies ++= actorShardTyped ++ reflect
 	).settings(settings)
 
 lazy val mediaManageState = (project in file("media-manage-state"))
@@ -76,7 +77,7 @@ lazy val mediaManagerService = (project in file("media-manager-service"))
 			case _                                                  => MergeStrategy.first
 		},
 		settings,
-		libraryDependencies ++= httpDepend
+		libraryDependencies ++= httpDepend ++ actorShardTyped
 	).dependsOn(utils % "compile->compile;test->test")
 
 lazy val settings = Seq(
@@ -89,14 +90,21 @@ lazy val settings = Seq(
 	// }
 )
 
-lazy val httpDepend = Seq(
+lazy val reflect = Seq(
+	"org.scala-lang" % "scala-reflect" % Information.scala
+)
+
+lazy val actorShardTyped = Seq(
 	"com.typesafe.akka" %% "akka-actor-typed" % Information.akka,
-	"com.typesafe.akka" %% "akka-stream" % Information.akka,
 	"com.typesafe.akka" %% "akka-cluster-sharding-typed" % Information.akka,
+	"ch.qos.logback" % "logback-classic" % Information.logback,
+	"com.typesafe.akka" %% "akka-slf4j" % Information.akka,
+)
+
+lazy val httpDepend = Seq(
+	"com.typesafe.akka" %% "akka-stream" % Information.akka,
 	"com.typesafe.akka" %% "akka-serialization-jackson" % Information.akka,
 	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
-	"com.typesafe.akka" %% "akka-slf4j" % Information.akka,
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
 	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`,
-	"ch.qos.logback" % "logback-classic" % Information.logback,
 )

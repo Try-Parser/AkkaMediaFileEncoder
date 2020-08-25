@@ -1,6 +1,9 @@
 package media.service.models
 
-trait CborSerializable
+import utils.traits.{
+	Command,
+	Event
+}
 
 import akka.actor.typed.scaladsl.{ ActorContext, Behaviors }
 import akka.actor.typed.{
@@ -26,8 +29,6 @@ import spray.json.{
 }
 
 private[service] object ServiceEncoder {
-	sealed trait Command extends CborSerializable
-	sealed trait Event extends CborSerializable
 
 	final case class AddRecord(data: Data, sender: ActorRef[Information]) extends Command
 	final case class RemoveRecord(data: Data, sender: ActorRef[Event]) extends Command
@@ -83,8 +84,8 @@ private[service] object ServiceEncoder {
 		run(ctx, eid, Vector.empty)
 	}
 
-	val TKey: EntityTypeKey[ServiceEncoder.Command] = 
-		EntityTypeKey[ServiceEncoder.Command]("ServiceModel")
+	val TKey: EntityTypeKey[Command] = 
+		EntityTypeKey[Command]("ServiceModel")
 
 	def initSharding(system: ActorSystem[_]): Unit = ClusterSharding(system)
 		.init(Entity(TKey) { eCtx => ServiceEncoder(eCtx.entityId) })

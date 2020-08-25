@@ -20,8 +20,8 @@ object ServerService {
 	}).foreach { nodePort =>
 		val httpPort = ("80" + nodePort.toString.takeRight(2)).toInt
 
-		// println(s"- Akka Http Port : $httpPort")
-		// println(s"- Node Port : $nodePort")
+		println(s"- Akka Http Port : ${httpPort + 10}")
+		println(s"- Node Port : $nodePort")
 
 		ActorSystem[Nothing](
 			media.service.guards.ServiceGuardian(httpPort), 
