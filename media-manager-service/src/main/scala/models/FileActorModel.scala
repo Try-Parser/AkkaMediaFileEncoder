@@ -2,25 +2,14 @@ package media.service.models
 
 import java.util.UUID
 
-import akka.actor.typed.scaladsl.{ ActorContext, Behaviors }
 import akka.actor.typed.{
 	ActorRef,
 	ActorSystem,
 	PostStop,
 	Behavior
 }
-import akka.cluster.sharding.typed.scaladsl.{
-	EntityTypeKey
-}
 
-import spray.json.{
-	DeserializationException,
-	DefaultJsonProtocol,
-	RootJsonFormat,
-	JsObject,
-	JsValue,
-	JsString
-}
+import akka.actor.typed.scaladsl.{ ActorContext, Behaviors }
 
 import utils.traits.{ Command, Event }
 import utils.traits._
@@ -40,8 +29,8 @@ private[service] class FileActor extends ShardActor[Command]("FileServiceActor")
 		aid: String,
 		memory: Vector[FileUpload]
 	): Behavior[Command] = Behaviors.receiveMessage[Command] {
-		case Upload(fileName, ext, source, sender) =>
-			val newFile = FileUpload(fileName, ext, source)
+		case Upload(fileName, ext, contentType, sender) =>
+			val newFile = FileUpload(fileName, ext, contentType)
 			val memoryUpdate = memory :+ newFile
 			ctx.log.info("new file added id: {}", newFile.id)
 			sender ! newFile
@@ -62,6 +51,21 @@ private[service] class FileActor extends ShardActor[Command]("FileServiceActor")
 }
 
 private[service] object FileActor extends Actor[FileActor] {
+	import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+	import akka.http.scaladsl.model.{
+		ContentType,
+		ErrorInfo
+	}
+	import spray.json.{
+		DeserializationException,
+		DefaultJsonProtocol,
+		RootJsonFormat,
+		JsObject,
+		JsValue,
+		JsString,
+		JsArray
+	}
+
 	//key
 	val TKey: EntityTypeKey[Command] = EntityTypeKey[Command](actor.actorName)
 
@@ -80,7 +84,7 @@ private[service] object FileActor extends Actor[FileActor] {
 	final case class Upload(
 		fileName: String, 
 		ext: String, 
-		source: String,
+		contentType: ContentTypeData,
 		sender: ActorRef[FileUpload]) extends Command
 	final case class Convert(
 		id: UUID, 
@@ -92,11 +96,14 @@ private[service] object FileActor extends Actor[FileActor] {
 		sender: ActorRef[_]) extends Command
 	final case class Play(id: UUID, sender: ActorRef[Option[FileUpload]]) extends Command
 
-	//evt
+	case class ContentTypeData(content: String) {
+		def getContentType(): Either[List[ErrorInfo], ContentType] = ContentType.parse(content)
+	}
+
 	final case class FileUpload(
-		source: String, 
 		fileName: String, 
-		extension: String) extends Event {
+		ext: String,
+		contentType: ContentTypeData) extends Event {
 		val id: UUID = UUID.randomUUID
 
 		def toJson: JsObject = FileUpload.Implicits.write(this).asJsObject
@@ -108,15 +115,25 @@ private[service] object FileActor extends Actor[FileActor] {
 			def write(file: FileUpload) = {
 				JsObject(
 					"file_name" -> JsString(file.fileName),
-					"extension" -> JsString(file.extension),
+					"type" -> JsString(file.contentType.content.toString),
+					"extension" -> JsString(file.ext),
 					"id" -> JsString(file.id.toString)
 				)
 			}
 
 			def read(json: JsValue) = {
 				json.asJsObject.getFields("source", "file_name", "xtn") match {
-					case Seq(JsString(file_name), JsString(xtn)) =>
-						FileUpload("", file_name, xtn)
+					case Seq(JsString(file_name), JsString(content_type), JsString(xtn) ) =>
+						ContentType.parse(xtn) match {
+							case Right(contentType) => 	FileUpload(file_name, xtn, ContentTypeData(content_type))
+							case Left(errors) => throw new DeserializationException(
+								JsArray(errors.map { error =>
+									JsObject(
+										"summary" -> JsString(error.summary), 
+										"detail" -> JsString(error.detail),
+										"header" -> JsString(error.errorHeaderName))
+							}.toVector).toString)
+						}
 					case _ => throw new DeserializationException("Invalid Json DeserializationException")
 				}
 			}

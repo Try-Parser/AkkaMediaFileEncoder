@@ -1,27 +1,23 @@
 package media.service.routes
 
-import java.io.File
-import java.time.Instant
-import java.util.UUID
+// import java.time.Instant
+// import java.util.UUID
 
 import scala.concurrent.duration._
 import scala.util.{ Success, Failure }
 
+import akka.util.Timeout
 import akka.actor.typed.ActorSystem
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.{ HttpResponse, StatusCodes }
 
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 
-import akka.util.Timeout
-
 import media.service.handler.FileActorHandler
 
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.server.directives.FileInfo
-
-import com.typesafe.config.ConfigFactory
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport  {
 
@@ -36,46 +32,47 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		.toMillis
 		.millis
 
-
 	//handler
-	val fileActorHandler: media.service.handler.FileActorHandler = FileActorHandler(sharding)
+	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
-	val configPath: String = ConfigFactory.load().getString("upload.path")
-
-	def tmpDst(file: FileInfo)(implicit tmpName: String): File = 
-		File.createTempFile(tmpName, ".tmp", new File(configPath))
-
-	//routes
 	val uploadFile: Route = path("upload") {
-		post {
-			implicit val tmpName: String = s"${UUID.randomUUID}-${Instant.now.toEpochMilli}"
-			storeUploadedFile("file", tmpDst) { 
-				case (meta, stream) =>
-					onComplete(fileActorHandler.uploadFile("", tmpName, configPath)) {
+		post { 
+			fileUpload("file") { case (meta, byteSource) => 
+				onComplete(
+					fileActorHandler
+					.writeFile(meta, byteSource)) {
 						case Success(file) => complete(file.toJson)
-						case Failure(e) => complete(e.toString)
-					}
-				case _ => complete("Invalid upload.")
-			}
-		}
-	}
+						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
+			}}	
+	}}
 
+	//todo 
 	val convertFile: Route = path("convert") {
 		get {
 			complete("convertFile")
 		}
 	}	
 
-	val convertStatus: Route = path("status") {
+	//test for play
+	val convertStatus: Route = path("status" / JavaUUID) { id =>
 		get {
-			complete("convertStatus")
+			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
+			complete(HttpEntity(
+				ContentTypes.`text/html(UTF-8)`,
+				"<audio controls> "+
+					s"<source src='http://localhost:8061/play/$id' type='audio/mpeg'> "+
+					"Your browser does not support the audio element. "+
+				"</audio>"
+			))
 		}
 	}	
 
+	//need revise for play
 	val playFile: Route = path("play" / JavaUUID) { id =>
 		get {
 			onComplete(fileActorHandler.play(id)) {
-				case Success(Some(file)) => complete(file.toJson)
+				case Success(Some(file)) => 
+					complete(HttpResponse(entity = fileActorHandler.getChunked(s"${file.fileName}.${file.ext}")))
 				case Success(None) => complete(s"Unable to find your file id: $id")
 				case Failure(e) => complete(e.toString)
 			}
