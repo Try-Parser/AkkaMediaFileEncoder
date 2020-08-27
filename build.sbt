@@ -102,6 +102,9 @@ lazy val actorShardTyped = Seq(
 )
 
 lazy val httpDepend = Seq(
+	// "ws.schild" % "jave-all-deps" % "2.7.3",
+	"ws.schild" % "jave-core" % "3.0.0",
+	"ws.schild" % "jave-nativebin-linux64" % "3.0.0",
 	"com.typesafe.akka" %% "akka-stream" % Information.akka,
 	"com.typesafe.akka" %% "akka-serialization-jackson" % Information.akka,
 	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,

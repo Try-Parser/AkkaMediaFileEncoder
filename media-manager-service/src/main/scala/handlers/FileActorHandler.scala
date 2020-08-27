@@ -10,6 +10,7 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 
 	import java.util.UUID
 	import java.nio.file.Paths
+	import java.io.File
 
 	import scala.concurrent.{ ExecutionContext, Future }
 	
@@ -60,13 +61,15 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 		}
 	}
 
+	def getFile(name: String): File = new File(s"${basePath}/$name")
+
+	def getChunked(name: String): ResponseEntity  = 
+		Chunked(ContentTypes.`application/octet-stream`, getSource(name)) 
+
 	private def writeFile(
 		fileName: String, 
 		source: Source[ByteString, _]): Future[IOResult] =
 			source.runWith(FileIO.toPath(Paths.get(s"${basePath}/$fileName")))
-
-	def getChunked(name: String): ResponseEntity  = 
-		Chunked(ContentTypes.`application/octet-stream`, getSource(name)) 
 
 	private def getXtn(fileName: String): String = {
 		val fullName = fileName.split(".")
@@ -78,9 +81,6 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 
 	private def getSource(name: String): Source[ChunkStreamPart, Future[IOResult]] =
 		getFileWithPath(name).map(ChunkStreamPart.apply)
-
-		// Source.fromIterator(scala.io.Source.fromFile(, enc).getLines)
-		// .map(ChunkStreamPart.apply)
 }
 
 private[service] object FileActorHandler {

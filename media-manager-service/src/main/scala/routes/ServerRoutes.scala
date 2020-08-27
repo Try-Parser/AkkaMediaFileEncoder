@@ -41,7 +41,17 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				onComplete(
 					fileActorHandler
 					.writeFile(meta, byteSource)) {
-						case Success(file) => complete(file.toJson)
+						case Success(file) => 
+							import ws.schild.jave.MultimediaObject
+
+							val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
+							val mmObject: MultimediaObject = new MultimediaObject(ff)
+							val infos = mmObject.getInfo()
+
+							println(infos)
+							println(mmObject)
+
+							complete(file.toJson)
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}	
 	}}
