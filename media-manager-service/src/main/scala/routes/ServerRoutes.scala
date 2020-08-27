@@ -16,7 +16,10 @@ import akka.http.scaladsl.model.{ HttpResponse, StatusCodes }
 
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 
-import media.service.handler.FileActorHandler
+import media.service.handler.{
+	FileActorHandler,
+	FileConverter
+}
 
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport  {
@@ -42,14 +45,24 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 					fileActorHandler
 					.writeFile(meta, byteSource)) {
 						case Success(file) => 
-							import ws.schild.jave.MultimediaObject
+							/* Commented convertion working please uncomment for test*/
 
-							val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
-							val mmObject: MultimediaObject = new MultimediaObject(ff)
-							val infos = mmObject.getInfo()
+							// import ws.schild.jave.MultimediaObject
 
-							println(infos)
-							println(mmObject)
+							// val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
+							// val mmObject: MultimediaObject = new MultimediaObject(ff)
+							// val infos = mmObject.getInfo()
+
+							// FileConverter.convert(
+							// 	FileConverter.Mp4(), 
+							// 	mmObject, 
+
+							/* This path file to your directory please change before test */
+							
+							// 	new java.io.File("/home/frank/Desktop/file/frank.mp4"))
+
+							// println(infos)
+							// println(mmObject)
 
 							complete(file.toJson)
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
