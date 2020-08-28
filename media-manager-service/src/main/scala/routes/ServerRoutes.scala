@@ -17,7 +17,7 @@ import media.service.handler.{
 	FileActorHandler,
 	FileConverter
 }
-import media.service.entity.Mp3
+import media.service.entity.{ Mp4, Mp3}
 
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport  {
@@ -57,11 +57,12 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 							/* This path file to your directory please change before test */
 
-							new java.io.File("/home/frank/Desktop/file/frank.mp3"))
+							new java.io.File(s"${FileActorHandler.basePath}/frank.mp3"))
 
 							println(infos)
 							println(mmObject)
-
+							Seq(Mp4, Mp3).map(println)
+							
 							complete(file.toJson)
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}	
