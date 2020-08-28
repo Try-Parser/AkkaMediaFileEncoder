@@ -1,8 +1,5 @@
 package media.service.routes
 
-// import java.time.Instant
-// import java.util.UUID
-
 import scala.concurrent.duration._
 import scala.util.{ Success, Failure }
 
@@ -20,6 +17,7 @@ import media.service.handler.{
 	FileActorHandler,
 	FileConverter
 }
+import media.service.entity.Mp3
 
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport  {
@@ -47,22 +45,22 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 						case Success(file) => 
 							/* Commented convertion working please uncomment for test*/
 
-							// import ws.schild.jave.MultimediaObject
+							import ws.schild.jave.MultimediaObject
 
-							// val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
-							// val mmObject: MultimediaObject = new MultimediaObject(ff)
-							// val infos = mmObject.getInfo()
+							val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
+							val mmObject: MultimediaObject = new MultimediaObject(ff)
+							val infos = mmObject.getInfo()
 
-							// FileConverter.convert(
-							// 	FileConverter.Mp4(), 
-							// 	mmObject, 
+							FileConverter.convert(
+								Mp3(), 
+								mmObject, 
 
 							/* This path file to your directory please change before test */
-							
-							// 	new java.io.File("/home/frank/Desktop/file/frank.mp4"))
 
-							// println(infos)
-							// println(mmObject)
+							new java.io.File("/home/frank/Desktop/file/frank.mp3"))
+
+							println(infos)
+							println(mmObject)
 
 							complete(file.toJson)
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
