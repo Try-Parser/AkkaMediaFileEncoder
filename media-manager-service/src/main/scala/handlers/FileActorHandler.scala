@@ -87,7 +87,7 @@ private[service] object FileActorHandler {
 
 	import com.typesafe.config.ConfigFactory
 
-	protected val basePath: String = ConfigFactory.load().getString("upload.path")
+	val basePath: String = ConfigFactory.load().getString("upload.path")
 
 	def apply(shards: ClusterSharding, sys: ActorSystem[_])(
 		implicit t: Timeout): FileActorHandler = new FileActorHandler(shards, sys)
