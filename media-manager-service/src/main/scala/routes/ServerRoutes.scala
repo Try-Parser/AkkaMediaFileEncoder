@@ -38,34 +38,35 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 	val uploadFile: Route = path("upload") {
 		post { 
-			fileUpload("file") { case (meta, byteSource) => 
-				onComplete(
-					fileActorHandler
-					.writeFile(meta, byteSource)) {
-						case Success(file) => 
-							/* Commented convertion working please uncomment for test*/
+			withSizeLimit(FileActorHandler.maxContentSize) { 
+				fileUpload("file") { case (meta, byteSource) => 
+					onComplete(
+						fileActorHandler
+						.writeFile(meta, byteSource)) {
+							case Success(file) => 
+								/* Commented convertion working please uncomment for test*/
 
-							import ws.schild.jave.MultimediaObject
+								import ws.schild.jave.MultimediaObject
 
-							val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
-							val mmObject: MultimediaObject = new MultimediaObject(ff)
-							val infos = mmObject.getInfo()
+								val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
+								val mmObject: MultimediaObject = new MultimediaObject(ff)
+								val infos = mmObject.getInfo()
 
-							FileConverter.convert(
-								Mp3(), 
-								mmObject, 
+								FileConverter.convert(
+									Mp3(), 
+									mmObject, 
 
-							/* This path file to your directory please change before test */
+								/* This path file to your directory please change before test */
 
-							new java.io.File(s"${FileActorHandler.basePath}/frank.mp3"))
+								new java.io.File(s"${FileActorHandler.basePath}/frank.mp3"))
 
-							println(infos)
-							println(mmObject)
-							Seq(Mp4, Mp3).map(println)
-							
-							complete(file.toJson)
-						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
-			}}	
+								println(infos)
+								println(mmObject)
+								Seq(Mp4, Mp3).map(println)
+								
+								complete(file.toJson)
+							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
+			}}}
 	}}
 
 	//todo 

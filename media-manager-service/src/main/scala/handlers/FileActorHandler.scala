@@ -84,10 +84,11 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 }
 
 private[service] object FileActorHandler {
+	private val factory: com.typesafe.config.Config = 
+		com.typesafe.config.ConfigFactory.load()
 
-	import com.typesafe.config.ConfigFactory
-
-	val basePath: String = ConfigFactory.load().getString("upload.path")
+	val basePath: String = factory.getString("upload.path")
+	val maxContentSize: Long = factory.getLong("upload.max-content-size")
 
 	def apply(shards: ClusterSharding, sys: ActorSystem[_])(
 		implicit t: Timeout): FileActorHandler = new FileActorHandler(shards, sys)
