@@ -1,24 +1,13 @@
 package media.service.entity
 
-import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
-
-import spray.json.{
-	JsObject,
-	JsString,
-	JsValue,
-	JsNumber,
-	DefaultJsonProtocol,
-	RootJsonFormat,
-	DeserializationException
-}
-
-import media.service.entity.Codec
+import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
+import ws.schild.jave.encode.{AudioAttributes, VideoAttributes}
 
 final case class Mp3(
 		audioBitRate: Int = 128000,
 		audioChannels: Int = 2,
 		audioSamplingRate: Int = 44100,
-		videoBitRate: String = VideoAttributes.DIRECT_STREAM_COPY) extends Codec("mp3") {
+		videoBitRate: String = VideoAttributes.DIRECT_STREAM_COPY) extends Codec {
 
 	val audioCodec: String = "libmp3lame"
 
@@ -26,6 +15,8 @@ final case class Mp3(
 		audio.setCodec("libmp3lame")
 		this
 	}
+
+	override val codecName: String = "mp3"
 
 	override def audioAttrs(): AudioAttributes = {
 		audio.setBitRate(audioBitRate)
