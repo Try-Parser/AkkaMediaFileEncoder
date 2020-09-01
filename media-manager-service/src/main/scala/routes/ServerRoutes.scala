@@ -15,10 +15,8 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 
 import media.service.handler.{
 	FileActorHandler,
-	FileConverter
+	// FileConverter
 }
-import media.service.entity.{ Mp4, Mp3}
-
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport  {
 
@@ -43,28 +41,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 					onComplete(
 						fileActorHandler
 						.writeFile(meta, byteSource)) {
-							case Success(file) => 
-								/* Commented convertion working please uncomment for test*/
-
-								import ws.schild.jave.MultimediaObject
-
-								val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
-								val mmObject: MultimediaObject = new MultimediaObject(ff)
-								val infos = mmObject.getInfo()
-
-								FileConverter.convert(
-									Mp3(), 
-									mmObject, 
-
-								/* This path file to your directory please change before test */
-
-								new java.io.File(s"${FileActorHandler.basePath}/frank.mp3"))
-
-								println(infos)
-								println(mmObject)
-								Seq(Mp4, Mp3).map(println)
-								
-								complete(file.toJson)
+							case Success(file) => complete(file.toJson)
 							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}}
 	}}
@@ -72,6 +49,25 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	//todo 
 	val convertFile: Route = path("convert") {
 		get {
+			/* Commented convertion working please uncomment for test*/
+
+			// import ws.schild.jave.MultimediaObject
+			// import media.service.entity.Media
+
+			// val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
+			// val mmObject: MultimediaObject = new MultimediaObject(ff)
+			// val infos = mmObject.getInfo()
+
+			// FileConverter.convert(
+			// 	Mp3(), 
+			// 	mmObject, 
+
+			/* This path file to your directory please change before test */
+
+			// new java.io.File(s"${FileActorHandler.basePath}/frank.mp3"))
+
+			// println(infos)
+			// println(mmObject)
 			complete("convertFile")
 		}
 	}	

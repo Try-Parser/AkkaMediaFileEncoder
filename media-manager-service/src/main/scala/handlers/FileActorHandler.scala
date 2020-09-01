@@ -22,6 +22,8 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	import akka.http.scaladsl.model.HttpEntity.{ Chunked, ChunkStreamPart }
 	import akka.http.scaladsl.model.{ ContentTypes, ResponseEntity }
 	import akka.http.scaladsl.server.directives.FileInfo
+
+	import ws.schild.jave.MultimediaObject
 	
 	import FileActorHandler._
 
@@ -32,6 +34,7 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 		FileUpload,
 		ContentTypeData
 	}
+	import media.service.entity.Media
 
 	implicit private val mat: Materializer = Materializer(sys.classicSystem)
 	implicit private val ec: ExecutionContext = mat.executionContext
@@ -51,13 +54,15 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 
 	def writeFile(
 		meta: FileInfo, 
-		source: Source[ByteString, _]): Future[FileUpload] = {
+		source: Source[ByteString, _]): Future[Media] = {
 		
 		val newName = java.util.UUID.randomUUID.toString
 		val xtn = getXtn(meta.fileName)
 
 		writeFile(s"$newName.$xtn", source).flatMap {
-			_ => uploadFile(newName, xtn, meta.contentType)
+			_ => uploadFile(newName, xtn, meta.contentType).map {
+				Media(getMultiMedia(s"$newName.$xtn").getInfo(), _)
+			}
 		}
 	}
 
@@ -66,13 +71,19 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	def getChunked(name: String): ResponseEntity  = 
 		Chunked(ContentTypes.`application/octet-stream`, getSource(name)) 
 
+	def getMultiMedia(name: String): MultimediaObject =
+		getMultiMedia(getFile(name))
+
+	def getMultiMedia(file: File): MultimediaObject = 
+		new MultimediaObject(file)
+
 	private def writeFile(
 		fileName: String, 
 		source: Source[ByteString, _]): Future[IOResult] =
 			source.runWith(FileIO.toPath(Paths.get(s"${basePath}/$fileName")))
 
 	private def getXtn(fileName: String): String = {
-		val fullName = fileName.split(".")
+		val fullName: Array[String] = fileName.split("\\.")
 		if(fullName.size <= 1) "tmp" else fullName(fullName.size-1)
 	}
 
