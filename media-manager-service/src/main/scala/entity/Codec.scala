@@ -18,11 +18,11 @@ object Codec {
 	final case class PixelFormat(value: String) extends AnyVal
 
 	final case class AudioAttr(codec: CodecName = CodecName(""),
-														 bitRate: BitRate = BitRate(0),
-														 samplingRate: SamplingRate = SamplingRate(0),
-														 channels: Channels = Channels(0),
-														 volume: Volume = Volume(0),
-														 quality: Quality = Quality(0)) {
+			                       bitRate: BitRate = BitRate(0),
+	                           samplingRate: SamplingRate = SamplingRate(0),
+	                           channels: Channels = Channels(0),
+	                           volume: Volume = Volume(0),
+	                           quality: Quality = Quality(0)) {
 
 		def toJaveAudioAttr: AudioAttributes = {
 			val audio: AudioAttributes = new AudioAttributes()
@@ -38,9 +38,9 @@ object Codec {
 
 
 	final case class VideoAttr(size: VideoSize,
-														 codec: CodecName = CodecName(""),
-														 bitRate: BitRate = BitRate(0),
-														 frameRate: FrameRate = FrameRate(0)) {
+	                           codec: CodecName = CodecName(""),
+	                           bitRate: BitRate = BitRate(0),
+	                           frameRate: FrameRate = FrameRate(0)) {
 
 		def toJaveVideoAttr: VideoAttributes = {
 			val video: VideoAttributes = new VideoAttributes()

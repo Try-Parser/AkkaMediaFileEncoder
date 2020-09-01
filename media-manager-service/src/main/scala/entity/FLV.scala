@@ -2,13 +2,14 @@ package entity
 
 import media.service.entity.Codec
 import media.service.entity.Codec._
-import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
-import ws.schild.jave.encode.{AudioAttributes, VideoAttributes}
+import spray.json.{ DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat }
+import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
 import ws.schild.jave.info.VideoSize
 
-final case class FLV(bitRate: BitRate = BitRate(64000),
-                     samplingRate: SamplingRate = SamplingRate(22050),
-                     channels: Channels = Channels(1)) extends Codec {
+final case class FLV(
+		bitRate: BitRate = BitRate(64000),
+		samplingRate: SamplingRate = SamplingRate(22050),
+		channels: Channels = Channels(1)) extends Codec {
 
   val codec = CodecName("flv")
   override val codecName: String = codec.value

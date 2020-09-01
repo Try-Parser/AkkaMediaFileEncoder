@@ -1,7 +1,15 @@
 package media.service.entity
 
-import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
-import ws.schild.jave.encode.{AudioAttributes, VideoAttributes}
+import spray.json.{
+	DefaultJsonProtocol,
+	DeserializationException,
+	JsNumber,
+	JsObject,
+	JsString,
+	JsValue,
+	RootJsonFormat
+}
+import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
 
 final case class Mp3(
 		audioBitRate: Int = 128000,

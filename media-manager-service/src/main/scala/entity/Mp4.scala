@@ -1,8 +1,8 @@
 package media.service.entity
 
-import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
+import spray.json.{ DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat }
 import ws.schild.jave.encode.enums.X264_PROFILE
-import ws.schild.jave.encode.{AudioAttributes, VideoAttributes}
+import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
 import ws.schild.jave.info.VideoSize
 
 final case class Mp4(

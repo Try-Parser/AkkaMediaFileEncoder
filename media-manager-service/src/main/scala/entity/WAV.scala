@@ -1,9 +1,21 @@
 package entity
 
 import media.service.entity.Codec
-import media.service.entity.Codec.{Channels, CodecName, SamplingRate}
-import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
-import ws.schild.jave.encode.{AudioAttributes, VideoAttributes}
+import media.service.entity.Codec.{
+  Channels,
+  CodecName,
+  SamplingRate
+}
+import spray.json.{
+  DefaultJsonProtocol,
+  DeserializationException,
+  JsNumber,
+  JsObject,
+  JsString,
+  JsValue,
+  RootJsonFormat
+}
+import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
 
 final case class WAV(channels: Channels, samplingRate: SamplingRate) extends Codec {
 
@@ -34,7 +46,7 @@ object WAV extends DefaultJsonProtocol {
 
     override def read(json: JsValue): WAV = {
       json.asJsObject.getFields("channels", "sampling_rate") match {
-        case Seq(JsNumber(channels), JsNumber(samplingRate)) => WAV(Channels(channels), SamplingRate(samplingRate.toInt))
+        case Seq(JsNumber(channels), JsNumber(samplingRate)) => WAV(Channels(channels.toInt), SamplingRate(samplingRate.toInt))
         case _ => throw DeserializationException("Invalid JSON Object")
       }
     }
