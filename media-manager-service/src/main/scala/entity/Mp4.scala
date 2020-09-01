@@ -1,20 +1,9 @@
 package media.service.entity
 
-import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
+import spray.json.{ DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat }
 import ws.schild.jave.encode.enums.X264_PROFILE
+import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
 import ws.schild.jave.info.VideoSize
-
-import media.service.entity.Codec
-
-import spray.json.{
-	JsNumber,
-	JsObject,
-	JsValue,
-	JsString,
-	DefaultJsonProtocol,
-	RootJsonFormat,
-	DeserializationException
-}
 
 final case class Mp4(
 	audioCodec: String = "aac",
@@ -25,28 +14,31 @@ final case class Mp4(
 	videoProfile: X264_PROFILE = X264_PROFILE.BASELINE,
 	videoBitRate: Int = 160000,
 	videoFrameRate: Int = 15,
-	videoSize: (Int, Int) = (400, 300)) extends Codec("mp4") {
-		override def audioAttrs(): AudioAttributes = {
-			audio.setCodec("aac");
-			// here 64kbit/s is 64000
-			audio.setBitRate(audioBitRate);
-			audio.setChannels(audioChannels);
-			audio.setSamplingRate(audioSamplingRate);
-			audio
-		}
+	videoSize: (Int, Int) = (400, 300)) extends Codec {
 
-		override def videoAttrs(): VideoAttributes = {
-			video.setCodec(videoCodec);
-			video.setX264Profile(videoProfile);
-			// Here 160 kbps video is 160000
-			video.setBitRate(videoBitRate);
-			// More the frames more quality and size, but keep it low based on devices like mobile
-			video.setFrameRate(videoFrameRate);
-			video.setSize(new VideoSize(videoSize._1, videoSize._1));
-			video
-		}
+	override val codecName: String = "mp4"
 
-		override def toJson(): JsObject = Mp4.Implicits.write(this).asJsObject 
+	override def audioAttrs(): AudioAttributes = {
+		audio.setCodec("aac")
+		// here 64kbit/s is 64000
+		audio.setBitRate(audioBitRate)
+		audio.setChannels(audioChannels)
+		audio.setSamplingRate(audioSamplingRate)
+		audio
+	}
+
+	override def videoAttrs(): VideoAttributes = {
+		video.setCodec(videoCodec)
+		video.setX264Profile(videoProfile)
+		// Here 160 kbps video is 160000
+		video.setBitRate(videoBitRate)
+		// More the frames more quality and size, but keep it low based on devices like mobile
+		video.setFrameRate(videoFrameRate)
+		video.setSize(new VideoSize(videoSize._1, videoSize._1))
+		video
+	}
+
+	override def toJson: JsObject = Mp4.Implicits.write(this).asJsObject
 }
 
 object Mp4 extends DefaultJsonProtocol {
@@ -67,36 +59,36 @@ object Mp4 extends DefaultJsonProtocol {
 			"extn" -> JsString(mp4.codecName)
 		)
 
-		def read(json: JsValue) = 
+		def read(json: JsValue) =
 			json.asJsObject.getFields("audio", "video") match {
 				case Seq(JsObject(audio), JsObject(video)) =>
-					val (aBitRate, 
-						aCodec, 
-						aChannels, 
+					val (aBitRate,
+						aCodec,
+						aChannels,
 						aSamplingRate): (Int, String, Int, Int) = audio match {
-							case Seq(JsNumber(bit_rate), JsString(codec), JsNumber(channels), JsNumber(sampling_rate)) => 
+							case Seq(JsNumber(bit_rate), JsString(codec), JsNumber(channels), JsNumber(sampling_rate)) =>
 									(bit_rate.toInt, codec, channels.toInt, sampling_rate.toInt)
 							case _ => throw new DeserializationException("Invalid audio config")}
 
-					val (vBitRate, 
-						vCodec, 
-						vChannels, 
-						vFrameRate, 
-						vProfile, 
+					val (vBitRate,
+						vCodec,
+						vChannels,
+						vFrameRate,
+						vProfile,
 						(h, w)): (Int, String, Int, Int, X264_PROFILE, (Int, Int)) = video match {
-							case Seq(JsNumber(bit_rate), 
-								JsString(codec), 
-								JsNumber(channels), 
-								JsNumber(frame_rate), 
-								JsObject(size), 
+							case Seq(JsNumber(bit_rate),
+								JsString(codec),
+								JsNumber(channels),
+								JsNumber(frame_rate),
+								JsObject(size),
 								JsString(profile)) => (
-									bit_rate.toInt, 
-									codec, 
-									channels.toInt, 
-									frame_rate.toInt, 
-									X264_PROFILE.valueOf(profile), size match { 
+									bit_rate.toInt,
+									codec,
+									channels.toInt,
+									frame_rate.toInt,
+									X264_PROFILE.valueOf(profile), size match {
 									case Seq(JsNumber(h), JsNumber(w))=> (h.toInt, w.toInt)
-									case _ => throw new DeserializationException("Invalid size config") 
+									case _ => throw new DeserializationException("Invalid size config")
 								})
 							case _ => throw new DeserializationException("Invalid video config")}
 
