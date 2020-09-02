@@ -2,7 +2,12 @@ package utils.implicits
 
 object Global {
 	implicit class GuardInt(value: Int) {
-		val NonZeroInt: Int => Option[Int] = i => if (i <= 0) None else Some(i)
-		val NonEmptyString: String => Option[String] = s => if (s.isEmpty) None else Some(s)
+		def nonZeroInt(): Option[Int] =
+			 if (value <= 0) None else Some(value)
+	}
+
+	implicit class GuardString(value: String) {
+		def nonEmptyString(): Option[String] =
+			if (value.trim.isEmpty) None else Some(value.trim)
 	}
 }

@@ -38,7 +38,7 @@ final case class Mp3(
 		video
 	}
 
-	override def toJson(): JsObject = Mp3.Implicits.write(this).asJsObject
+	override def toJson: JsObject = Mp3.Implicits.write(this).asJsObject
 } 
 
 object Mp3 extends DefaultJsonProtocol {
@@ -62,7 +62,7 @@ object Mp3 extends DefaultJsonProtocol {
 					Mp3(audioBitRate = bit_rate.toInt,
 						audioChannels = channels.toInt,
 						audioSamplingRate = sampling_rate.toInt)
-				case _ => throw new DeserializationException("Invalid Json Object")
+				case _ => throw new DeserializationException("Invalid json object")
 			}
 	}
 }

@@ -9,6 +9,7 @@ object Codec {
 	private val NonEmptyString: String => Option[String] = s => if (s.isEmpty) None else Some(s)
 
 	final case class CodecName(value: String) extends AnyVal
+	final case class Tag(value: String) extends AnyVal
 	final case class BitRate(value: Int) extends AnyVal
 	final case class SamplingRate(value: Int) extends AnyVal
 	final case class Channels(value: Int) extends AnyVal
@@ -16,6 +17,8 @@ object Codec {
 	final case class Quality(value: Int) extends AnyVal
 	final case class FrameRate(value: Int) extends AnyVal
 	final case class PixelFormat(value: String) extends AnyVal
+	final case class Duration(value: Int) extends AnyVal
+	final case class Format(value: String) extends AnyVal
 
 	final case class AudioAttr(
 		codec: CodecName = CodecName(""),
@@ -40,12 +43,14 @@ object Codec {
 		size: VideoSize,
 		codec: CodecName = CodecName(""),
 		bitRate: BitRate = BitRate(0),
-		frameRate: FrameRate = FrameRate(0)) {
+		frameRate: FrameRate = FrameRate(0),
+		tag: Tag = Tag("")) {
 			def toJaveVideoAttr: VideoAttributes = {
 				val video: VideoAttributes = new VideoAttributes()
 				NonEmptyString(codec.value).map(v => video.setCodec(v))
 				NonZeroInt(bitRate.value).map(v => video.setBitRate(v))
 				NonZeroInt(frameRate.value).map(v => video.setFrameRate(v))
+				NonEmptyString(tag.value).map(v => video.setTag(v))
 				video.setSize(size)
 				video
 			}
@@ -53,9 +58,9 @@ object Codec {
 
 }
 
-abstract class Codec {
+abstract class Codec { 
 	import spray.json.JsObject
-
+	
 	val audio: AudioAttributes = new AudioAttributes()
 	val video: VideoAttributes = new VideoAttributes()
 

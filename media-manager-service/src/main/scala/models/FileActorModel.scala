@@ -15,6 +15,8 @@ import utils.traits.{ Command, Event }
 import utils.traits._
 import utils.actors._
 
+import media.service.handlers.FileHandler.ContentTypeData
+
 private[service] class FileActor extends ShardActor[Command]("FileServiceActor") {
 	import FileActor.{
 		Upload,
@@ -52,10 +54,8 @@ private[service] class FileActor extends ShardActor[Command]("FileServiceActor")
 
 private[service] object FileActor extends Actor[FileActor] {
 	import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-	import akka.http.scaladsl.model.{
-		ContentType,
-		ErrorInfo
-	}
+	import akka.http.scaladsl.model.ContentType
+
 	import spray.json.{
 		DeserializationException,
 		DefaultJsonProtocol,
@@ -96,10 +96,6 @@ private[service] object FileActor extends Actor[FileActor] {
 		sender: ActorRef[_]) extends Command
 	final case class Play(id: UUID, sender: ActorRef[Option[FileUpload]]) extends Command
 
-	case class ContentTypeData(content: String) {
-		def getContentType(): Either[List[ErrorInfo], ContentType] = ContentType.parse(content)
-	}
-
 	final case class FileUpload(
 		fileName: String, 
 		ext: String,
@@ -115,7 +111,7 @@ private[service] object FileActor extends Actor[FileActor] {
 			def write(file: FileUpload) = {
 				JsObject(
 					"file_name" -> JsString(file.fileName),
-					"type" -> JsString(file.contentType.content.toString),
+					"content_type" -> JsString(file.contentType.content.toString),
 					"extension" -> JsString(file.ext),
 					"id" -> JsString(file.id.toString)
 				)
@@ -123,17 +119,20 @@ private[service] object FileActor extends Actor[FileActor] {
 
 			def read(json: JsValue) = {
 				json.asJsObject.getFields("source", "file_name", "xtn") match {
-					case Seq(JsString(file_name), JsString(content_type), JsString(xtn) ) =>
-						ContentType.parse(xtn) match {
-							case Right(contentType) => 	FileUpload(file_name, xtn, ContentTypeData(content_type))
+					case Seq(JsString(file_name), 
+						JsString(content_type), 
+						JsString(xtn) ) => ContentType.parse(content_type) match {
+							case Right(contentType) => 	FileUpload(
+								file_name, 
+								xtn,
+								ContentTypeData(content_type))
 							case Left(errors) => throw new DeserializationException(
 								JsArray(errors.map { error =>
 									JsObject(
 										"summary" -> JsString(error.summary), 
 										"detail" -> JsString(error.detail),
 										"header" -> JsString(error.errorHeaderName))
-							}.toVector).toString)
-						}
+							}.toVector).toString)}
 					case _ => throw new DeserializationException("Invalid Json DeserializationException")
 				}
 			}

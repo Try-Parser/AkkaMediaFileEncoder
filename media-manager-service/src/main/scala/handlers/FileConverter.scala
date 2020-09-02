@@ -1,4 +1,4 @@
-package media.service.handler
+package media.service.handlers
 
 import ws.schild.jave.{ Encoder, MultimediaObject }
 import ws.schild.jave.encode.EncodingAttributes 

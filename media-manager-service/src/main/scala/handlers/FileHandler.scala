@@ -13,6 +13,7 @@ import akka.http.scaladsl.model.{ ContentTypes, ResponseEntity }
 import akka.stream.IOResult
 import akka.stream.scaladsl.{ FileIO, Source }
 import akka.stream.Materializer
+import akka.http.scaladsl.model.{ ContentType, ErrorInfo }
 
 import ws.schild.jave.MultimediaObject
 
@@ -47,4 +48,8 @@ private[service] object FileHandler {
 		fileName: String, 
 		source: Source[ByteString, _])(implicit mat: Materializer): Future[IOResult] =
 			source.runWith(FileIO.toPath(Paths.get(s"${FileHandler.basePath}/$fileName")))
+
+	final case class ContentTypeData(content: String) {
+		def getContentType(): Either[List[ErrorInfo], ContentType] = ContentType.parse(content)
+	}
 }

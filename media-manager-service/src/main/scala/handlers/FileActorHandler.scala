@@ -1,4 +1,4 @@
-package media.service.handler 
+package media.service.handlers
 
 import akka.actor.typed.ActorSystem
 
@@ -9,31 +9,22 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	(implicit timeout: Timeout) {
 
 	import java.util.UUID
-	import java.nio.file.Paths
-	import java.io.File
 
 	import scala.concurrent.{ ExecutionContext, Future }
 	
 	import akka.util.ByteString
 	import akka.stream.Materializer
-	import akka.stream.IOResult
-	import akka.stream.scaladsl.{ FileIO, Source }
+	import akka.stream.scaladsl.Source
 	import akka.http.scaladsl.model.ContentType
-	import akka.http.scaladsl.model.HttpEntity.{ Chunked, ChunkStreamPart }
-	import akka.http.scaladsl.model.{ ContentTypes, ResponseEntity }
 	import akka.http.scaladsl.server.directives.FileInfo
-
-	import ws.schild.jave.MultimediaObject
 	
-	import FileActorHandler._
-
 	import media.service.models.FileActor
 	import media.service.models.FileActor.{
 		Upload,
 		Play,
-		FileUpload,
-		ContentTypeData
+		FileUpload
 	}
+	import media.service.handlers.FileHandler.ContentTypeData
 	import media.service.entity.Media
 
 	implicit private val mat: Materializer = Materializer(sys.classicSystem)
@@ -57,50 +48,18 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 		source: Source[ByteString, _]): Future[Media] = {
 		
 		val newName = java.util.UUID.randomUUID.toString
-		val xtn = getXtn(meta.fileName)
+		val xtn = FileHandler.getXtn(meta.fileName)
 
-		writeFile(s"$newName.$xtn", source).flatMap {
+		FileHandler.writeFile(s"$newName.$xtn", source).flatMap {
 			_ => uploadFile(newName, xtn, meta.contentType).map {
-				Media(getMultiMedia(s"$newName.$xtn").getInfo(), _)
+				Media(FileHandler.getMultiMedia(s"$newName.$xtn").getInfo(), _)
 			}
 		}
 	}
 
-	def getFile(name: String): File = new File(s"${basePath}/$name")
-
-	def getChunked(name: String): ResponseEntity  = 
-		Chunked(ContentTypes.`application/octet-stream`, getSource(name)) 
-
-	def getMultiMedia(name: String): MultimediaObject =
-		getMultiMedia(getFile(name))
-
-	def getMultiMedia(file: File): MultimediaObject = 
-		new MultimediaObject(file)
-
-	private def writeFile(
-		fileName: String, 
-		source: Source[ByteString, _]): Future[IOResult] =
-			source.runWith(FileIO.toPath(Paths.get(s"${basePath}/$fileName")))
-
-	private def getXtn(fileName: String): String = {
-		val fullName: Array[String] = fileName.split("\\.")
-		if(fullName.size <= 1) "tmp" else fullName(fullName.size-1)
-	}
-
-	private def getFileWithPath(fileName: String): Source[ByteString, Future[IOResult]] =
-		FileIO.fromPath(Paths.get(s"${basePath}/$fileName"))
-
-	private def getSource(name: String): Source[ChunkStreamPart, Future[IOResult]] =
-		getFileWithPath(name).map(ChunkStreamPart.apply)
 }
 
 private[service] object FileActorHandler {
-	private val factory: com.typesafe.config.Config = 
-		com.typesafe.config.ConfigFactory.load()
-
-	val basePath: String = factory.getString("upload.path")
-	val maxContentSize: Long = factory.getLong("upload.max-content-size")
-
 	def apply(shards: ClusterSharding, sys: ActorSystem[_])(
 		implicit t: Timeout): FileActorHandler = new FileActorHandler(shards, sys)
 }

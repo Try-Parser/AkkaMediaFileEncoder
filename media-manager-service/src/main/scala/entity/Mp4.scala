@@ -93,7 +93,7 @@ object Mp4 extends DefaultJsonProtocol {
 							case _ => throw new DeserializationException("Invalid video config")}
 
 					Mp4(aCodec, aBitRate, aChannels, aSamplingRate, vCodec, vProfile, vBitRate, vFrameRate, (h,w))
-				case _ => throw new DeserializationException("Invalid Mp4 Config")
+				case _ => throw new DeserializationException("Invalid Mp4 config")
 			}
 	}
 }

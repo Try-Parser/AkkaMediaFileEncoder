@@ -13,8 +13,9 @@ import akka.http.scaladsl.model.{ HttpResponse, StatusCodes }
 
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 
-import media.service.handler.{
+import media.service.handlers.{
 	FileActorHandler,
+	FileHandler
 	// FileConverter
 }
 
@@ -36,7 +37,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 	val uploadFile: Route = path("upload") {
 		post { 
-			withSizeLimit(FileActorHandler.maxContentSize) { 
+			withSizeLimit(FileHandler.maxContentSize) { 
 				fileUpload("file") { case (meta, byteSource) => 
 					onComplete(
 						fileActorHandler
@@ -91,7 +92,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		get {
 			onComplete(fileActorHandler.play(id)) {
 				case Success(Some(file)) => 
-					complete(HttpResponse(entity = fileActorHandler.getChunked(s"${file.fileName}.${file.ext}")))
+					complete(HttpResponse(entity = FileHandler.getChunked(s"${file.fileName}.${file.ext}")))
 				case Success(None) => complete(s"Unable to find your file id: $id")
 				case Failure(e) => complete(e.toString)
 			}
