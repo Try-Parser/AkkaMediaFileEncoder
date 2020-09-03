@@ -1,25 +1,18 @@
 package media.service.routes
 
 import scala.concurrent.duration._
-import scala.util.{ Success, Failure }
-
+import scala.util.{Failure, Success}
 import akka.util.Timeout
 import akka.actor.typed.ActorSystem
-
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.{ HttpResponse, StatusCodes }
-
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import media.service.handlers.{FileActorHandler, FileHandler}
+import routes.RejectionHandlers
 
-import media.service.handlers.{
-	FileActorHandler,
-	FileHandler
-	// FileConverter
-}
-
-private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport  {
+private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport with RejectionHandlers {
 
 	// shards
 	private val sharding = ClusterSharding(system)
@@ -35,7 +28,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
-	val uploadFile: Route = path("upload") {
+	val uploadFile: Route = handleRejections(rejectionHandlers) { path("upload") {
 		post { 
 			withSizeLimit(FileHandler.maxContentSize) { 
 				fileUpload("file") { case (meta, byteSource) => 
@@ -45,12 +38,12 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 							case Success(file) => complete(file.toJson)
 							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}}
-	}}
+	}}}
 
-	//todo 
+	//todo
 	val convertFile: Route = path("convert") {
 		post {
-			entity(as[media.service.entity.MediaConvert]) { media => 
+			entity(as[media.service.entity.MediaConvert]) { media =>
 				complete(media.toJson)
 			}
 			/* Commented convertion working please uncomment for test*/
@@ -63,8 +56,8 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			// val infos = mmObject.getInfo()
 
 			// FileConverter.convert(
-			// 	Mp3(), 
-			// 	mmObject, 
+			// 	Mp3(),
+			// 	mmObject,
 
 			/* This path file to your directory please change before test */
 
@@ -74,10 +67,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			// println(mmObject)
 			// complete("convertFile")
 		}
-	}	
+	}
 
 	//test for play
-	val convertStatus: Route = path("status" / JavaUUID) { id =>
+	val convertStatus: Route = handleRejections(rejectionHandlers) { path("status" / JavaUUID) { id =>
 		get {
 			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
 			complete(HttpEntity(
@@ -88,10 +81,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				"</audio>"
 			))
 		}
-	}	
+	}}
 
 	//need revise for play
-	val playFile: Route = path("play" / JavaUUID) { id =>
+	val playFile: Route = handleRejections(rejectionHandlers) { path("play" / JavaUUID) { id =>
 		get {
 			onComplete(fileActorHandler.play(id)) {
 				case Success(Some(file)) => 
@@ -101,7 +94,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			}
 		}
 	}
-}
+}}
 
 object ServiceRoutes {
 	def apply(system: ActorSystem[_]): Route = {

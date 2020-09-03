@@ -13,9 +13,9 @@ private[service] object FileConverter {
 		va: Boolean = false): String = {
 			val attrs: EncodingAttributes = new EncodingAttributes()
 			attrs.setOutputFormat(codec.codecName)
-			attrs.setAudioAttributes(codec.audio)
+			attrs.setAudioAttributes(codec.audioAttrs())
 			if(va) 
-				attrs.setVideoAttributes(codec.video)
+				attrs.setVideoAttributes(codec.videoAttrs())
 
 			val encoder: Encoder = new Encoder()
 			encoder.encode(source, target, attrs)
