@@ -49,7 +49,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 	//todo 
 	val convertFile: Route = path("convert") {
-		get {
+		post {
+			entity(as[media.service.entity.MediaConvert]) { media => 
+				complete(media.toJson)
+			}
 			/* Commented convertion working please uncomment for test*/
 
 			// import ws.schild.jave.MultimediaObject
@@ -69,7 +72,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 			// println(infos)
 			// println(mmObject)
-			complete("convertFile")
+			// complete("convertFile")
 		}
 	}	
 

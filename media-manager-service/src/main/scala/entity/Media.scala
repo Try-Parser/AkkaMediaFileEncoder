@@ -1,5 +1,9 @@
 package media.service.entity
 
+import java.util.UUID
+
+import scala.collection.mutable.ListBuffer
+
 import akka.http.scaladsl.model.ContentType
 
 import ws.schild.jave.info.{ MultimediaInfo, VideoSize }
@@ -11,11 +15,12 @@ import spray.json.{
 	DefaultJsonProtocol,
 	RootJsonFormat,
 	DeserializationException,
-	JsValue,
-	JsArray
+	JsValue
 }
 
 import media.service.models.FileActor.FileUpload
+
+import media.service.handlers.FileHandler.ContentTypeData
 
 import media.service.entity.Codec.{
 	CodecName,
@@ -91,9 +96,10 @@ object MediaConvert extends DefaultJsonProtocol {
 		}}
 	}
 
-	implicit object Implicits extends RootJsonFormat[MediaConvert] {
+	implicit object Implicits extends utils.json.ExceptionHandler with RootJsonFormat[MediaConvert] {
+
 		def write(m: MediaConvert): JsObject = JsObject(
-			"file_uploaded" -> m.toJson,
+			"file_uploaded" -> m.file.toJson,
 			"duration" -> JsNumber(m.duration.value),
 			"format" -> JsString(m.format.value),
 			"video" -> m.video.map { v =>
@@ -116,17 +122,16 @@ object MediaConvert extends DefaultJsonProtocol {
 					"volume" -> JsNumber(a.volume.value)
 				)}.getOrElse(JsString("")))
 
-		def read(js: JsValue) = {
-			js.asJsObject.getFields(
+		def read(js: JsValue) = js.asJsObject.getFields(
 				"file_uploaded", 
 				"duration", 
 				"format", 
-				"video", 
-				"audio") match {
+				"audio",
+				"video") match {
 					case Seq(JsObject(file_uploaded), 
 						JsNumber(duration), 
 						JsString(format), 
-						JsObject(audio), 
+						JsObject(audio),
 						JsObject(video)) => MediaConvert(readFileUpload(file_uploaded), 
 							Duration(duration.toInt), 
 							readVideo(video), 
@@ -148,86 +153,140 @@ object MediaConvert extends DefaultJsonProtocol {
 							readVideo(video),
 							None,
 							Format(format))
-					case _ => throw new DeserializationException("Invalid Media config")
-				}
+					case _ => throw new DeserializationException("Invalid Media config")}
+
+		private def readVideo(js: Map[String, JsValue]): Option[Video] = {
+			val errorFields = new ListBuffer[String]()
+
+			val frameRate: FrameRate = JsExtract[FrameRate](
+				js, "frame_rate", FrameRate(0.0),
+				{ case JsNumber(value) => FrameRate(value.toDouble)
+				  case _ => errorFields += "frame_rate"; FrameRate(0.0) },
+				(f) => errorFields += f)
+
+			val bitRate: BitRate = JsExtract[BitRate](
+				js, "bit_rate", BitRate(0), 
+				{ case JsNumber(value) => BitRate(value.toInt)
+				  case _ => errorFields += "bit_rate"; BitRate(0) }, 
+				(f) => errorFields += f)
+
+			val codec: CodecName = JsExtract[CodecName](
+				js, "decoder", CodecName(""),
+				{ case JsString(value) => CodecName(value.toString)
+				  case _ => errorFields += "decoder"; CodecName("") },
+				(f) => errorFields += f)
+
+			val tag: Tag = JsExtractOption[Tag](
+				js, "tag", Tag(""),
+				{ case JsString(value) => Tag(value.toString)
+				  case _ => Tag("") })
+
+			val size: VideoSize = JsExtract[VideoSize](
+				js, "size", new VideoSize(0, 0), 
+				{ case obj: JsValue => obj.asJsObject.fields match {
+					case sobj: Map[String, JsValue] => 
+						val h: Int = JsExtract[Int](
+							sobj, "height", 0, 
+							{ case JsNumber(h) => h.toInt 
+							  case _ => errorFields += "size.height"; 0 }, 
+							(f) => errorFields += f)
+
+						val w: Int = JsExtract[Int](
+							sobj, "width", 0,
+							{ case JsNumber(w) => w.toInt 
+							  case _ => errorFields += "size.width"; 0 }, 
+							(f) => errorFields += f)
+						
+						new VideoSize(w, h)}}, 
+				(f) => errorFields += f)
+
+			
+			extractor[Option[Video]](
+				errorFields.toList, 
+				Some(Video(bitRate, frameRate, codec, size, tag)))
 		}
 
-		private def readVideo(js: Map[String, JsValue]): Option[Video] = js match {
-			case Seq(JsNumber(bit_rate), 
-				JsNumber(frame_rate), 
-				JsString(codec), 
-				JsObject(size),
-				JsString(tag)) => someVideo(bit_rate.toInt, frame_rate.toInt, codec, size, tag)
-			case Seq(JsNumber(bit_rate), 
-				JsNumber(frame_rate),
-				JsString(codec), 
-				JsObject(size)) => someVideo(bit_rate.toInt, frame_rate.toInt, codec, size, "")
-			case _ => throw new DeserializationException("Invalid video config")
+		private def readAudio(js: Map[String, JsValue]): Option[Audio] = {
+			val errorFields = new ListBuffer[String]()
+
+			val bitRate: BitRate = JsExtract[BitRate](
+				js, "bit_rate", BitRate(0),
+				{ case JsNumber(value) => BitRate(value.toInt)
+				  case _ => errorFields += ""; BitRate(0) },
+				(f) => errorFields += f)
+
+			val channels: Channels = JsExtract[Channels](
+				js, "channels", Channels(0),
+				{ case JsNumber(value) => Channels(value.toInt)
+				  case _ => errorFields += ""; Channels(0) },
+				(f) => errorFields += f)
+
+			val codec: CodecName = JsExtract[CodecName](
+				js, "decoder", CodecName(""),
+				{ case JsString(value) => CodecName(value.toString)
+				  case _ => errorFields += ""; CodecName("") },
+				(f) => errorFields += f)
+
+			val samplingRate: SamplingRate = JsExtract[SamplingRate](
+				js, "sampling_rate", SamplingRate(0),
+				{ case JsNumber(value) => SamplingRate(value.toInt) 
+				  case _ => errorFields += ""; SamplingRate(0) },
+				(f) => errorFields += f)
+
+			val quality: Quality = JsExtractOption[Quality](
+				js, "quality", Quality(0), 
+				{ case JsNumber(value) => Quality(value.toInt)
+				  case _ => errorFields += ""; Quality(0) })
+
+			val volume: Volume = JsExtractOption[Volume](
+				js, "volume", Volume(0),
+				{ case JsNumber(value) => Volume(value.toInt)
+				  case _ => errorFields += ""; Volume(0) })
+
+			extractor[Option[Audio]](errorFields.toList, Some(Audio(
+				bitRate, channels, codec, samplingRate, quality, volume)))
 		}
 
-		private def someVideo(
-			bitRate: Int, 
-			frameRate: Int,
-			codec: String,
-			size: Map[String, JsValue],
-			tag: String): Option[Video] = Some(Video(
-				BitRate(bitRate),
-				FrameRate(frameRate),
-				CodecName(codec),
-				size match {
-					case Seq(JsNumber(h), JsNumber(w)) => new VideoSize(w.toInt, h.toInt)
-					case _ => throw new DeserializationException("Invalid size config")
-				},
-				Tag(tag)))
+		private def readFileUpload(js: Map[String, JsValue]): FileUpload = {
+			val errorFields = new ListBuffer[String]()
 
-		private def readAudio(js: Map[String, JsValue]): Option[Audio] = js match {
-			case Seq(JsNumber(bit_rate), 
-				JsNumber(channels), 
-				JsString(codec), 
-				JsNumber(sampling_rate), 
-				JsNumber(quality), 
-				JsNumber(volume)) => 
-					someAudio(bit_rate.toInt,
-						channels.toInt,
-						codec,
-						sampling_rate.toInt,
-						quality.toInt,
-						volume.toInt)
-			case Seq(JsNumber(bit_rate), JsNumber(channels), 
-				JsString(codec), JsString(sampling_rate)) =>
-					someAudio(bit_rate.toInt, channels.toInt, codec, sampling_rate.toInt, 0, 0)
-			case _ => throw new DeserializationException("Invalid audio config")}
+			val file_name: String = JsExtract[String](
+				js, "file_name", "",
+				{ case JsString(value) => value.toString 
+				  case _ => errorFields += "file_name"; "" },
+				(f) => errorFields += f)
 
-		private def someAudio(
-			bitRate: Int, 
-			channels: Int, 
-			codec: String, 
-			samplingRate: Int, 
-			quality: Int, 
-			volume: Int): Option[Audio] = Some(Audio(
-				BitRate(bitRate),
-				Channels(channels),
-				CodecName(codec),
-				SamplingRate(samplingRate),
-				Quality(quality),
-				Volume(volume)))
+			val extension: String = JsExtract[String](
+				js, "extension", "",
+				{ case JsString(value) => value.toString 
+				  case _ => errorFields += "extension"; "" },
+				(f) => errorFields += f)
 
-		private def readFileUpload(js: Map[String, JsValue]): FileUpload = js match {
-			case Seq(JsString(file_name), 
-				JsString(extension), 
-				JsString(content_type)) => ContentType.parse(content_type) match {
-					case Right(contentType) => FileUpload(
-						file_name, 
-						extension, 
-						media.service.handlers.FileHandler.ContentTypeData(content_type))
-					case Left(errors) => throw new DeserializationException(
-						JsArray(errors.map { error =>
-							JsObject(
-								"summary" -> JsString(error.summary), 
-								"detail" -> JsString(error.detail),
-								"header" -> JsString(error.errorHeaderName))
-					}.toVector).toString)}
-			case _ => throw new DeserializationException("Invalid file_upload config")
+			val id: UUID = JsExtract[UUID](
+				js, "id", UUID.randomUUID, 
+				{ case JsString(value) => parseId(value.toString) match {
+					case Some(uid) => uid
+					case None => errorFields += "id"; UUID.randomUUID }
+				  case _ => errorFields += "id"; UUID.randomUUID },
+				(f) => errorFields += f)
+
+			val content_type: ContentTypeData = JsExtract[ContentTypeData](
+				js, "content_type", ContentTypeData("mp3"), 
+				{ case JsString(value) => ContentType.parse(value) match {
+					case Right(ct) => ContentTypeData(value)
+					case Left(errors) => errorFields += "content_type"; ContentTypeData("") }
+				  case _ => errorFields += "content_type"; ContentTypeData("") },
+				(f) => errorFields += f)
+
+			extractor[FileUpload](
+				errorFields.toList,
+				FileUpload(file_name, extension, content_type, id))
+		}
+
+		private def parseId(id: String): Option[UUID] = try {
+			Some(UUID.fromString(id))
+		} catch {
+			case _ : Throwable => None
 		}
 	}
 }

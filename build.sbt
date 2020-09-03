@@ -47,7 +47,7 @@ lazy val utils = (project in file("utils"))
 		publishLocal := {},
 		publishArtifact := false,
 		skip in publish := true,
-		libraryDependencies ++= actorShardTyped ++ reflect
+		libraryDependencies ++= actorShardTyped ++ reflect ++ json
 	).settings(settings)
 
 lazy val mediaManageState = (project in file("media-manage-state"))
@@ -101,6 +101,10 @@ lazy val actorShardTyped = Seq(
 	"com.typesafe.akka" %% "akka-slf4j" % Information.akka,
 )
 
+lazy val json = Seq(
+	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`
+)
+
 lazy val httpDepend = Seq(
 	// "ws.schild" % "jave-all-deps" % "2.7.3",
 	"ws.schild" % "jave-core" % "3.0.0",
@@ -109,5 +113,4 @@ lazy val httpDepend = Seq(
 	"com.typesafe.akka" %% "akka-serialization-jackson" % Information.akka,
 	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
-	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`,
-)
+) ++ json

@@ -1,11 +1,11 @@
 package media.service.entity
 
 import ws.schild.jave.encode.{ AudioAttributes, VideoAttributes }
-import ws.schild.jave.info.VideoSize
 
 object Codec {
 
 	private val NonZeroInt: Int => Option[Int] = i => if (i <= 0) None else Some(i)
+	private val NonZeroDouble: Double => Option[Double] = i => if (i <= 0) None else Some(i)
 	private val NonEmptyString: String => Option[String] = s => if (s.isEmpty) None else Some(s)
 
 	final case class CodecName(value: String) extends AnyVal
@@ -15,7 +15,7 @@ object Codec {
 	final case class Channels(value: Int) extends AnyVal
 	final case class Volume(value: Int) extends AnyVal
 	final case class Quality(value: Int) extends AnyVal
-	final case class FrameRate(value: Int) extends AnyVal
+	final case class FrameRate(value: Double) extends AnyVal
 	final case class PixelFormat(value: String) extends AnyVal
 	final case class Duration(value: Int) extends AnyVal
 	final case class Format(value: String) extends AnyVal
@@ -40,7 +40,7 @@ object Codec {
 	}
 
 	final case class VideoAttr(
-		size: VideoSize,
+		size: ws.schild.jave.info.VideoSize,
 		codec: CodecName = CodecName(""),
 		bitRate: BitRate = BitRate(0),
 		frameRate: FrameRate = FrameRate(0),
@@ -49,7 +49,7 @@ object Codec {
 				val video: VideoAttributes = new VideoAttributes()
 				NonEmptyString(codec.value).map(v => video.setCodec(v))
 				NonZeroInt(bitRate.value).map(v => video.setBitRate(v))
-				NonZeroInt(frameRate.value).map(v => video.setFrameRate(v))
+				NonZeroDouble(frameRate.value).map(v => video.setFrameRate(v.toInt))
 				NonEmptyString(tag.value).map(v => video.setTag(v))
 				video.setSize(size)
 				video
@@ -59,13 +59,11 @@ object Codec {
 }
 
 abstract class Codec { 
-	import spray.json.JsObject
-	
 	val audio: AudioAttributes = new AudioAttributes()
 	val video: VideoAttributes = new VideoAttributes()
 
 	val codecName: String
 	def audioAttrs(): AudioAttributes
 	def videoAttrs(): VideoAttributes
-	def toJson: JsObject
+	def toJson: spray.json.JsObject
 }

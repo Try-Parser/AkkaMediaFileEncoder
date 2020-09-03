@@ -99,8 +99,8 @@ private[service] object FileActor extends Actor[FileActor] {
 	final case class FileUpload(
 		fileName: String, 
 		ext: String,
-		contentType: ContentTypeData) extends Event {
-		val id: UUID = UUID.randomUUID
+		contentType: ContentTypeData,
+		id: UUID = UUID.randomUUID) extends Event {
 
 		def toJson: JsObject = FileUpload.Implicits.write(this).asJsObject
 	} 
@@ -118,13 +118,13 @@ private[service] object FileActor extends Actor[FileActor] {
 			}
 
 			def read(json: JsValue) = {
-				json.asJsObject.getFields("source", "file_name", "xtn") match {
+				json.asJsObject.getFields("file_name", "content_type", "extension") match {
 					case Seq(JsString(file_name), 
 						JsString(content_type), 
-						JsString(xtn) ) => ContentType.parse(content_type) match {
+						JsString(extension)) => ContentType.parse(content_type) match {
 							case Right(contentType) => 	FileUpload(
 								file_name, 
-								xtn,
+								extension,
 								ContentTypeData(content_type))
 							case Left(errors) => throw new DeserializationException(
 								JsArray(errors.map { error =>
