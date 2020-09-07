@@ -58,7 +58,7 @@ object Codec {
 
 }
 
-abstract class Codec { 
+abstract class Codec {
 	val audio: AudioAttributes = new AudioAttributes()
 	val video: VideoAttributes = new VideoAttributes()
 
