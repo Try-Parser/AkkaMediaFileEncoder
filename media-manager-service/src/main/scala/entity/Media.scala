@@ -65,7 +65,7 @@ final case class MediaConvert(
 
 object MediaConvert extends DefaultJsonProtocol {
 	import utils.implicits.JsExtraction._
-	import utils.json.ExceptionHandler
+	import utils.json.JsHandler
 
 	object Media {
 		implicit object Implicits {
@@ -99,7 +99,7 @@ object MediaConvert extends DefaultJsonProtocol {
 		}}
 	}
 
-	implicit object Implicits extends ExceptionHandler with RootJsonFormat[MediaConvert] {		
+	implicit object Implicits extends JsHandler with RootJsonFormat[MediaConvert] {		
 		def write(m: MediaConvert): JsObject = JsObject(
 			"file_uploaded" -> m.file.toJson,
 			"duration" -> JsNumber(m.duration.value),

@@ -20,7 +20,7 @@ final case class Form(
 	} 
 }
 
-class ExceptionHandler {
+class JsHandler {
 	protected def extractor[T](fields: List[String], a: T, msg: String = "Invalid fields."): T = {
 		if(fields.isEmpty) a
 		else error(msg, fieldNames = fields)
