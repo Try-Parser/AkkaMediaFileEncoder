@@ -18,6 +18,8 @@ lazy val Information = new {
 
 	val akka = "2.6.8"
 	val `akka-http` = "10.2.0"
+	val `akka-persistence` = "1.0.1"
+	val `akka-projection` = "0.3"
 	val logback = "1.2.3"
 }
 
@@ -47,7 +49,7 @@ lazy val utils = (project in file("utils"))
 		publishLocal := {},
 		publishArtifact := false,
 		skip in publish := true,
-		libraryDependencies ++= actorShardTyped ++ reflect ++ json
+		libraryDependencies ++= httpDepend ++ actorShardTyped ++ reflect ++ json
 	).settings(settings)
 
 lazy val mediaManageState = (project in file("media-manage-state"))
@@ -55,7 +57,13 @@ lazy val mediaManageState = (project in file("media-manage-state"))
 		name := "media_manage_state",
 		assemblyJarName in assembly := "state.jar",
 		mainClass in assembly := Some("media.ServerState"),
-		settings
+		assemblyMergeStrategy in assembly := {
+			case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
+			case fileName if fileName.toLowerCase.endsWith(".conf") => MergeStrategy.concat
+			case _                                                  => MergeStrategy.first
+		},
+		settings,
+		libraryDependencies ++= httpDepend ++ actorShardTyped ++ persistence
 	).dependsOn(utils % "compile->compile;test->test")
 
 lazy val mediaManagerApp = (project in file("media-manager-app"))
@@ -114,3 +122,12 @@ lazy val httpDepend = Seq(
 	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
 ) ++ json
+
+lazy val persistence = Seq(
+	"com.typesafe.akka" %% "akka-persistence-typed" % Information.akka,
+	"com.typesafe.akka" %% "akka-persistence-query" % Information.akka,
+	"com.typesafe.akka" %% "akka-persistence-cassandra" % Information.`akka-persistence`,
+	"com.typesafe.akka" %% "akka-persistence-cassandra-launcher" % Information.`akka-persistence`,
+	"com.lightbend.akka" %% "akka-projection-eventsourced" % Information.`akka-projection`,
+	"com.lightbend.akka" %% "akka-projection-cassandra" % Information.`akka-projection`
+)
