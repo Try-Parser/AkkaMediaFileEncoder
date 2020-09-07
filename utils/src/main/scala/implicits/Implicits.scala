@@ -55,7 +55,7 @@ object JsExtraction {
 					k -> default
 			})}
 
-			Form(errors, mMap, errors.size > 0)
+			Form(errors.toMap, mMap, errors.size > 0)
 		}
 
 		def extractNonRequired[T](
