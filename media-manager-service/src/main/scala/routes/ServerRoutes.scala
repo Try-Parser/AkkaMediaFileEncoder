@@ -35,7 +35,28 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 					onComplete(
 						fileActorHandler
 						.writeFile(meta, byteSource)) {
-							case Success(file) => complete(file.toJson)
+							case Success(file) => 
+								/* Commented convertion working please uncomment for test*/
+
+								// import ws.schild.jave.MultimediaObject
+								// import media.service.handlers.FileHandler
+
+								// val ff = FileHandler.getFile(s"${file.file.fileName}.${file.file.ext}")
+								// val mmObject: MultimediaObject = new MultimediaObject(ff)
+								// val infos = mmObject.getInfo()
+
+								// media.service.handlers.FileConverter.convert(
+								// 	media.service.entity.Mp3(),
+								// 	mmObject,
+
+								// /* This path file to your directory please change before test */
+
+								// new java.io.File(s"${FileHandler.basePath}/frank.mp3"))
+
+								// println(infos)
+								// println(mmObject)
+
+								complete(file.toJson)
 							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}}
 	}}}

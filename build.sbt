@@ -36,6 +36,7 @@ lazy val `root` = (project in file("."))
 	).settings(settings)
 	.aggregate(
 		utils,
+		FDK,
 		mediaManageState,
 		mediaManagerService,
 		mediaManagerApp
@@ -52,6 +53,18 @@ lazy val utils = (project in file("utils"))
 		libraryDependencies ++= httpDepend ++ actorShardTyped ++ reflect ++ json
 	).settings(settings)
 
+lazy val FDK = (project in file("media-fdk"))
+	.settings(
+		name := "fdk"
+	).settings(
+		publish := {},
+		publishLocal := {},
+		publishArtifact := false,
+		skip in publish := true,
+		libraryDependencies ++= httpDepend ++ actorShardTyped ++ reflect ++ json
+	).dependsOn(utils % "compile->compile;test->test")
+
+
 lazy val mediaManageState = (project in file("media-manage-state"))
 	.settings(
 		name := "media_manage_state",
@@ -64,7 +77,10 @@ lazy val mediaManageState = (project in file("media-manage-state"))
 		},
 		settings,
 		libraryDependencies ++= httpDepend ++ actorShardTyped ++ persistence
-	).dependsOn(utils % "compile->compile;test->test")
+	).dependsOn(
+		utils % "compile->compile;test->test",
+		FDK % "compile->compile;test->test"
+	)
 
 lazy val mediaManagerApp = (project in file("media-manager-app"))
 	.settings(
@@ -72,7 +88,7 @@ lazy val mediaManagerApp = (project in file("media-manager-app"))
 		assemblyJarName in assembly := "app.jar",
 		mainClass in assembly := Some("media.ServerApp"),
 		settings
-	).dependsOn(utils % "compile->compile;test->test")
+	).dependsOn()
 
 lazy val mediaManagerService = (project in file("media-manager-service"))
 	.settings(
@@ -86,7 +102,10 @@ lazy val mediaManagerService = (project in file("media-manager-service"))
 		},
 		settings,
 		libraryDependencies ++= httpDepend ++ actorShardTyped
-	).dependsOn(utils % "compile->compile;test->test")
+	).dependsOn(
+		utils % "compile->compile;test->test",
+		FDK % "compile->compile;test->test"
+	)
 
 lazy val settings = Seq(
 	crossTarget := baseDirectory.value / "target",
