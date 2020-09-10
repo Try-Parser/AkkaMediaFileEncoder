@@ -9,14 +9,15 @@ lazy val Information = new {
 	  "-unchecked",
 	  "-Xlint",
 	  "-Ywarn-unused:imports",
-	  "-encoding", "UTF-8"
+	  "-encoding", "UTF-8",
+	  "-Xlog-reflective-calls"
 	)
 	val javacOpt = Seq(
 		"-Xlint:unchecked",
 		"-Xlint:deprecation"
 	)
 
-	val akka = "2.6.8"
+	val akka = "2.6.9"
 	val `akka-http` = "10.2.0"
 	val `akka-persistence` = "1.0.1"
 	val `akka-projection` = "0.3"

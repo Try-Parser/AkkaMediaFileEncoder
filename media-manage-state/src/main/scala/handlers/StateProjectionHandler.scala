@@ -10,19 +10,18 @@ import media.state.models.FileActorModel.Event
 
 import scala.concurrent.Future
 
-class StateProjectionHandler(tag: String, system: ActorSystem[_])
-  extends Handler[EventEnvelope[Event]] {
-  val log = LoggerFactory.getLogger(getClass)
+class StateProjectionHandler(
+  tag: String, 
+  system: ActorSystem[_]) extends Handler[EventEnvelope[Event]] {
+    val log = LoggerFactory.getLogger(getClass)
 
-  override def process(envelope: EventEnvelope[Event]): Future[Done] = {
-
-    log.info(
-      "EventProcessor({}) consumed {} from {} with seqNr {}",
-      tag,
-      envelope.event,
-      envelope.persistenceId,
-      envelope.sequenceNr)
-    system.eventStream ! EventStream.Publish(envelope.event)
-    Future.successful(Done)
-  }
+    override def process(envelope: EventEnvelope[Event]): Future[Done] = {
+      log.info("EventProcessor({}) consumed {} from {} with seqNr {}",
+        tag,
+        envelope.event,
+        envelope.persistenceId,
+        envelope.sequenceNr)
+      system.eventStream ! EventStream.Publish(envelope.event)
+      Future.successful(Done)
+    }
 }

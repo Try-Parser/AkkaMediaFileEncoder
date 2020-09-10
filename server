@@ -7,7 +7,8 @@ execState() {
 
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		gnome-terminal -- java -jar media-manage-state/target/state.jar
+		gnome-terminal -- java -jar media-manage-state/target/state.jar cassandra
+		gnome-terminal -- java -jar media-manage-state/target/state.jar 
 	fi
 }
 

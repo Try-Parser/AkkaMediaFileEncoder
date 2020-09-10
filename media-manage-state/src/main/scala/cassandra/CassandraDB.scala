@@ -11,8 +11,9 @@ import scala.concurrent.duration.DurationInt
 
 object CassandraDB {
   def startCassandraDatabase(): Unit = {
-    val databaseDirectory = new File("target/cassandra-db")
-    CassandraLauncher.start(databaseDirectory, CassandraLauncher.DefaultTestConfigResource, clean = false, port = 4421)
+    CassandraLauncher.start(
+      new File("media-manage-state/target/cassandra-db"), 
+      CassandraLauncher.DefaultTestConfigResource, clean = false, port = 9042)
   }
 
   def createTables(system: ActorSystem[_]): Unit = {
@@ -38,12 +39,22 @@ object CassandraDB {
         PRIMARY KEY ((projection_name, partition), projection_key)
       )
         """
-
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
     // ok to block here, main thread
     Await.ready(session.executeDDL(keyspaceStmt), 30.seconds)
     system.log.info("Created media_manager_state keyspace")
     Await.ready(session.executeDDL(offsetTableStmt), 30.seconds)
     system.log.info("Created media_manager_state.offset_store table")
+
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
+    println("0000000000000000000000000000000000000000000000000000000000")
 
   }
 }
