@@ -68,7 +68,7 @@ object FileActorModel {
       val n = math.abs(eCntxt.entityId.hashCode % eventProcessorSettings.parallelism)
       val eventTag = eventProcessorSettings.tagPrefix + "-" + n
       FileActorModel(UUID.fromString(eCntxt.entityId), Set(eventTag))
-    }.withRole("write-model"))
+    })
   }
 
   def apply(fileId: UUID, eventTags: Set[String]): Behavior[Command] = {

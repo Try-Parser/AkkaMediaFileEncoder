@@ -1,12 +1,11 @@
 package media.service.entity
 
 import java.util.UUID
-
 import scala.collection.mutable.ListBuffer
 
 import akka.http.scaladsl.model.ContentType
-
 import ws.schild.jave.info.{ MultimediaInfo, VideoSize }
+import ws.schild.jave.encode.enums.X264_PROFILE
 
 import spray.json.{
 	JsNumber,
@@ -15,13 +14,13 @@ import spray.json.{
 	DefaultJsonProtocol,
 	RootJsonFormat,
 	DeserializationException,
-	JsValue
+	JsValue,
+	JsArray
 }
 
+import media.fdk.models.MultiMedia
 import media.service.models.FileActor.FileUpload
-
 import media.service.handlers.FileHandler.ContentTypeData
-
 import media.service.entity.Codec.{
 	CodecName,
 	BitRate,
@@ -39,20 +38,9 @@ final case class Media(mmi: MultimediaInfo, file: FileUpload) {
 	def toJson: JsObject = MediaConvert.Media.Implicits.write(this).asJsObject
 }
 
-final case class Audio(
-	bitRate: BitRate, 
-	channels: Channels, 
-	codec: CodecName, 
-	samplingRate: SamplingRate,
-	quality: Quality,
-	volume: Volume)
-
-final case class Video(
-	bitRate: BitRate, 
-	frameRate: FrameRate, 
-	codec: CodecName, 
-	size: VideoSize,
-	tag: Tag)
+final case class FileMedia(media: MultiMedia, source: Media) {
+	def toJson(): JsObject = MediaConvert.FileMedia.Implicits.write(this).asJsObject
+}
 
 final case class MediaConvert(
 	file: FileUpload, 
@@ -65,7 +53,17 @@ final case class MediaConvert(
 
 object MediaConvert extends DefaultJsonProtocol {
 	import utils.implicits.JsExtraction._
-	import utils.json.JsHandler
+
+	object FileMedia {
+		implicit object Implicits {
+			def write(fm: FileMedia) = JsObject(
+				"file_format" -> fm.source.toJson,
+				"available_codec" -> fm.media.toJson,
+				"profile" -> JsArray(
+					X264_PROFILE.values.map(v => JsString(v.getModeName))
+					.toVector))
+		}
+	}
 
 	object Media {
 		implicit object Implicits {
@@ -75,7 +73,9 @@ object MediaConvert extends DefaultJsonProtocol {
 						"decoder" -> JsString(audio.getDecoder()),
 						"sampling_rate" -> JsNumber(audio.getSamplingRate()),
 						"channels" -> JsNumber(audio.getChannels()),
-						"bit_rate" -> JsNumber(audio.getBitRate()))
+						"bit_rate" -> JsNumber(audio.getBitRate()),
+						"quality" -> JsNumber(0),
+						"volume" -> JsNumber(0))
 					case None => JsString("")
 				}
 
@@ -86,7 +86,8 @@ object MediaConvert extends DefaultJsonProtocol {
 							"width" -> JsNumber(video.getSize().getWidth()),
 							"height" -> JsNumber(video.getSize().getHeight())),
 						"bit_rate" -> JsNumber(video.getBitRate()),
-						"frame_rate" -> JsNumber(video.getFrameRate()))
+						"frame_rate" -> JsNumber(video.getFrameRate()),
+						"tag" -> JsString(""))
 					case None => JsString("")
 				}
 
@@ -99,7 +100,7 @@ object MediaConvert extends DefaultJsonProtocol {
 		}}
 	}
 
-	implicit object Implicits extends JsHandler with RootJsonFormat[MediaConvert] {		
+	implicit object Implicits extends utils.json.JsHandler with RootJsonFormat[MediaConvert] {		
 		def write(m: MediaConvert): JsObject = JsObject(
 			"file_uploaded" -> m.file.toJson,
 			"duration" -> JsNumber(m.duration.value),
@@ -147,14 +148,6 @@ object MediaConvert extends DefaultJsonProtocol {
 							None,
 							readAudio(audio),
 							Format(format))
-					case Seq(JsObject(file_uploaded), 
-						JsNumber(duration),
-						JsString(format), 
-						JsObject(video)) => MediaConvert(readFileUpload(file_uploaded),
-							Duration(duration.toInt),
-							readVideo(video),
-							None,
-							Format(format))
 					case _ => throw new DeserializationException("Invalid Media config")}
 
 		private def readVideo(js: Map[String, JsValue]): Option[Video] = {
@@ -186,6 +179,11 @@ object MediaConvert extends DefaultJsonProtocol {
 				case _ => Tag("")
 			})
 
+			val profile: X264_PROFILE = js.extractNonRequired[X264_PROFILE]("profile", X264_PROFILE.BASELINE)({
+				case JsString(value) => X264_PROFILE.valueOf(value.toUpperCase.toString)
+				case _ => X264_PROFILE.BASELINE 
+			})
+
 			val size: VideoSize = js.extract[VideoSize]("size", new VideoSize(0, 0))({
 				case sizeObj: JsValue => sizeObj.asJsObject.fields match {
 					case obj: Map[String, JsValue] =>
@@ -204,10 +202,9 @@ object MediaConvert extends DefaultJsonProtocol {
 				}
 			}, f => errorFields += f)
 
-			
 			extractor[Option[Video]](
 				errorFields.toList, 
-				Some(Video(bitRate, frameRate, codec, size, tag)))
+				Some(Video(bitRate, frameRate, codec, size, tag, profile)))
 		}
 
 		private def readAudio(js: Map[String, JsValue]): Option[Audio] = {
@@ -270,7 +267,7 @@ object MediaConvert extends DefaultJsonProtocol {
 					""
 			}, f => errorFields += f)
 
-			val extension: String = js.extract[String]("file_name", "")({
+			val extension: String = js.extract[String]("extension", "")({
 				case JsString(value) => value.toString
 				case _=> 
 					errorFields += "extension"

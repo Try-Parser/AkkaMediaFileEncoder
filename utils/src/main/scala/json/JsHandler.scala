@@ -53,20 +53,3 @@ class JsHandler {
 			case None => default 
 		}
 }
-
-
-// val form: Form = 
-// 	js.extracForm(
-// 		Map("bit_rate" -> Extractor[Int](0),
-// 		"frame_rate" -> Extractor[Int](0), 
-// 		"codec" -> Extractor[String](""),
-// 		"tag" -> Extractor[String]("", false)))
-
-// extractor[Option[Video]](
-// 	form.errors.toList ++ errorFields.toMap.toList, 
-// 	Some(Video(
-// 		form.get("bit_rate", BitRate(0)){ d => BitRate(d.toInt) }, 
-// 		form.get("frame_rate", FrameRate(0.0)){ d => FrameRate(d.toDouble) },
-// 		form.get("decoder", CodecName("")){ d => CodecName(d.toString) }, 
-// 		size,
-// 		form.get("tag", Tag("")){ d => Tag(d.toString) })))

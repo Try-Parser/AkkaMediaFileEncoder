@@ -21,10 +21,12 @@ private[service] object FileHandler {
 	private val factory: com.typesafe.config.Config = 
 		com.typesafe.config.ConfigFactory.load()
 
-	val basePath: String = factory.getString("upload.path")
-	val maxContentSize: Long = factory.getLong("upload.max-content-size")
+	val uploadPath: String = factory.getString("file-directory.upload.path")
+	val convertPath: String = factory.getString("file-directory.convert.path")
+	val maxContentSize: Long = factory.getLong("file-directory.upload.max-content-size")
 
-	def getFile(name: String): File = new File(s"${basePath}/$name")
+	def getFile(name: String, upload: Boolean = true): File = 
+		new File(s"${if(upload) uploadPath else convertPath}/$name")
 
 	def getChunked(name: String): ResponseEntity  = 
 		Chunked(ContentTypes.`application/octet-stream`, getSource(name)) 
@@ -39,7 +41,7 @@ private[service] object FileHandler {
 	}
 
 	def getFileWithPath(fileName: String): Source[ByteString, Future[IOResult]] =
-		FileIO.fromPath(Paths.get(s"${basePath}/$fileName"))
+		FileIO.fromPath(Paths.get(s"${convertPath}/$fileName"))
 
 	def getSource(name: String): Source[ChunkStreamPart, Future[IOResult]] =
 		getFileWithPath(name).map(ChunkStreamPart.apply)
@@ -47,7 +49,7 @@ private[service] object FileHandler {
 	def writeFile(
 		fileName: String, 
 		source: Source[ByteString, _])(implicit mat: Materializer): Future[IOResult] =
-			source.runWith(FileIO.toPath(Paths.get(s"${FileHandler.basePath}/$fileName")))
+			source.runWith(FileIO.toPath(Paths.get(s"${FileHandler.uploadPath}/$fileName")))
 
 	final case class ContentTypeData(content: String) {
 		def getContentType(): Either[List[ErrorInfo], ContentType] = ContentType.parse(content)

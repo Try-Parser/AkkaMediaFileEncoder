@@ -11,6 +11,9 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import media.service.handlers.{FileActorHandler, FileHandler}
 import routes.RejectionHandlers
+import media.service.entity.FileMedia
+import media.service.entity.MediaConvert
+import media.service.handlers.FileConverter
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport with RejectionHandlers {
 
@@ -28,7 +31,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
-	val uploadFile: Route = handleRejections(rejectionHandlers) { path("upload") {
+	val uploadFile: Route = path("upload") {
 		post { 
 			withSizeLimit(FileHandler.maxContentSize) { 
 				fileUpload("file") { case (meta, byteSource) => 
@@ -36,62 +39,26 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 						fileActorHandler
 						.writeFile(meta, byteSource)) {
 							case Success(file) => 
-								/* Commented convertion working please uncomment for test*/
-
-								// import ws.schild.jave.MultimediaObject
-								// import media.service.handlers.FileHandler
-
-								// val ff = FileHandler.getFile(s"${file.file.fileName}.${file.file.ext}")
-								// val mmObject: MultimediaObject = new MultimediaObject(ff)
-								// val infos = mmObject.getInfo()
-
-								// media.service.handlers.FileConverter.convert(
-								// 	media.service.entity.Mp3(),
-								// 	mmObject,
-
-								// /* This path file to your directory please change before test */
-
-								// new java.io.File(s"${FileHandler.basePath}/frank.mp3"))
-
-								// println(infos)
-								// println(mmObject)
-
-								complete(file.toJson)
+								val (vid, aud) = (file.mmi.getVideo(), file.mmi.getAudio())
+								complete(FileMedia(
+									FileConverter.getAvailableFormats(vid != null, aud != null), 
+									file).toJson)
 							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}}
-	}}}
+	}}
 
 	//todo
 	val convertFile: Route = path("convert") {
 		post {
-			entity(as[media.service.entity.MediaConvert]) { media =>
+			entity(as[MediaConvert]) { media =>
+				println(FileConverter.startConvert(media))
 				complete(media.toJson)
 			}
-			/* Commented convertion working please uncomment for test*/
-
-			// import ws.schild.jave.MultimediaObject
-			// import media.service.entity.Media
-
-			// val ff = fileActorHandler.getFile(s"${file.fileName}.${file.ext}")
-			// val mmObject: MultimediaObject = new MultimediaObject(ff)
-			// val infos = mmObject.getInfo()
-
-			// FileConverter.convert(
-			// 	Mp3(),
-			// 	mmObject,
-
-			/* This path file to your directory please change before test */
-
-			// new java.io.File(s"${FileActorHandler.basePath}/frank.mp3"))
-
-			// println(infos)
-			// println(mmObject)
-			// complete("convertFile")
 		}
 	}
 
 	//test for play
-	val convertStatus: Route = handleRejections(rejectionHandlers) { path("status" / JavaUUID) { id =>
+	val convertStatus: Route =  path("status" / JavaUUID) { id =>
 		get {
 			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
 			complete(HttpEntity(
@@ -102,10 +69,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				"</audio>"
 			))
 		}
-	}}
+	}
 
 	//need revise for play
-	val playFile: Route = handleRejections(rejectionHandlers) { path("play" / JavaUUID) { id =>
+	val playFile: Route = path("play" / JavaUUID) { id =>
 		get {
 			onComplete(fileActorHandler.play(id)) {
 				case Success(Some(file)) => 
@@ -115,12 +82,12 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			}
 		}
 	}
-}}
+}
 
 object ServiceRoutes {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
-		route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile	
-		//~ route.testFunc
+		val cRoute = route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile	
+		cRoute
 	}
 }

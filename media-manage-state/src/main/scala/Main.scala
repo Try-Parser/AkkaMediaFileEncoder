@@ -24,21 +24,26 @@ object ServerState {
 	}
 
 	private def startNode(port: Option[String]): Unit = {
+		val roles: List[String] = ConfigFactory.load()
+			.getStringList("akka.cluster.roles")
+			.asScala.toList
+
 		(port match {
 			case Some(p) => Seq(p.toInt)
 			case None => (ConfigFactory.load()
 				.getStringList("akka.cluster.seed-nodes")
 				.asScala
 				.flatMap { case AddressFromURIString(s) => s.port })
-		}).foreach { nodePort =>
+		}).view.zipWithIndex.foreach { case (nodePort, i) =>
 			val httpPort = ("80" + nodePort.toString.takeRight(2)).toInt
 
 			val system = ActorSystem[Nothing](
 				media.state.guards.StateGuardian(httpPort),
 				"state",
 				ConfigFactory.parseString(s"""
+				akka.cluster.roles.0 = ${roles(i)}
 				akka.remote.artery.canonical.port = $nodePort
-				shopping.http.port = $httpPort
+				media-manager-state.http.port = $httpPort
 			""").withFallback(ConfigFactory.load()))
 
 			if(Cluster(system).selfMember.hasRole("read-model"))

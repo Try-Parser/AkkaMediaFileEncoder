@@ -3,7 +3,12 @@ package utils.implicits
 object Primitive {
 	implicit class GuardInt(value: Int) {
 		def nonZeroInt(): Option[Int] =
-			 if (value <= 0) None else Some(value)
+			if (value <= 0) None else Some(value)
+	}
+
+	implicit class GuardDouble(value: Double) {
+		def nonZeroDouble(): Option[Double] = 
+			if (value <= 0) None else Some(value)
 	}
 
 	implicit class GuardString(value: String) {
