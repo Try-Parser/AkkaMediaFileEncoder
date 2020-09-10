@@ -1,7 +1,7 @@
 package media.service.routes
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import akka.util.Timeout
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.server.Directives._
@@ -31,7 +31,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
-	val uploadFile: Route = path("upload") {
+	val uploadFile: Route = handleRejections(rejectionHandlers) { path("upload") {
 		post { 
 			withSizeLimit(FileHandler.maxContentSize) { 
 				fileUpload("file") { case (meta, byteSource) => 
@@ -41,24 +41,24 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 							case Success(file) => 
 								val (vid, aud) = (file.mmi.getVideo(), file.mmi.getAudio())
 								complete(FileMedia(
-									FileConverter.getAvailableFormats(vid != null, aud != null), 
+									FileConverter.getAvailableFormats(vid != null, aud != null),
 									file).toJson)
 							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}}
-	}}
+	}}}
 
 	//todo
-	val convertFile: Route = path("convert") {
+	val convertFile: Route = handleRejections(rejectionHandlers) { path("convert") {
 		post {
 			entity(as[MediaConvert]) { media =>
 				println(FileConverter.startConvert(media))
 				complete(media.toJson)
 			}
 		}
-	}
+	}}
 
 	//test for play
-	val convertStatus: Route =  path("status" / JavaUUID) { id =>
+	val convertStatus: Route = handleRejections(rejectionHandlers) { path("status" / JavaUUID) { id =>
 		get {
 			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
 			complete(HttpEntity(
@@ -69,10 +69,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				"</audio>"
 			))
 		}
-	}
+	}}
 
 	//need revise for play
-	val playFile: Route = path("play" / JavaUUID) { id =>
+	val playFile: Route = handleRejections(rejectionHandlers) { path("play" / JavaUUID) { id =>
 		get {
 			onComplete(fileActorHandler.play(id)) {
 				case Success(Some(file)) => 
@@ -81,13 +81,13 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				case Failure(e) => complete(e.toString)
 			}
 		}
-	}
+	}}
 }
 
 object ServiceRoutes {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
-		val cRoute = route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile	
+		val cRoute = route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile
 		cRoute
 	}
 }
