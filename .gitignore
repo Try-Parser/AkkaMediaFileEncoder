@@ -2,6 +2,7 @@
 target
 media-manage-state/target
 media-manager-app/target
+media-fdk/target
 media-manager-service/target
 utils/target
 project/project
