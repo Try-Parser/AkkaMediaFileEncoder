@@ -15,15 +15,13 @@ import akka.projection.{ProjectionBehavior, ProjectionId}
 import media.state.events.EventProcessorSettings
 import media.state.handlers.StateProjectionHandler
 import media.state.models.FileActorModel
+import utils.traits.Event
 
 object StateGuardian {
   def apply(): Behavior[Nothing] = Behaviors.setup[Nothing] { context =>
-
     val system = context.system
-
     val settings = EventProcessorSettings(system)
-
-    FileActorModel.init(system, settings)
+    FileActorModel.init(settings)(system)
 
     if (Cluster(system).selfMember.hasRole("read-model")) {
       val shardingSettings = ClusterShardingSettings(system)
@@ -38,19 +36,19 @@ object StateGuardian {
         shardedDaemonProcessSettings,
         Some(ProjectionBehavior.Stop))
     }
-
     Behaviors.empty
-}}
+  }
+}
 
 private object ServiceHttpServer {
   def createProjectionFor(
     system: ActorSystem[_],
     settings: EventProcessorSettings,
-    index: Int): AtLeastOnceProjection[Offset, EventEnvelope[FileActorModel.Event]] = {
+    index: Int): AtLeastOnceProjection[Offset, EventEnvelope[Event]] = {
 
     val tag = s"${settings.tagPrefix}-$index"
 
-    val sourceProvider = EventSourcedProvider.eventsByTag[FileActorModel.Event](
+    val sourceProvider = EventSourcedProvider.eventsByTag[Event](
         system = system,
         readJournalPluginId = CassandraReadJournal.Identifier,
         tag = tag)
