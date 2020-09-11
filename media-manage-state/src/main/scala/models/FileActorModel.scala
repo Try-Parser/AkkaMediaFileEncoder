@@ -2,19 +2,35 @@ package media.state.models
 
 import java.util.UUID
 
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, SupervisorStrategy}
+import akka.actor.typed.{
+  ActorRef,
+  ActorSystem,
+  Behavior,
+  SupervisorStrategy
+}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
-import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect, RetentionCriteria}
+import akka.persistence.typed.scaladsl.{
+  Effect,
+  EventSourcedBehavior,
+  ReplyEffect,
+  RetentionCriteria
+}
 import media.state.events.EventProcessorSettings
-import media.state.models.FileActorModel.{AddFile, FileAdded, GetFile, State}
 import utils.actors.{Actor, ShardActor}
 import utils.traits.{CborSerializable, Command, Event}
 
 import scala.concurrent.duration._
 
 class FileActorModel extends ShardActor[Command]("FileActor") {
+  import media.state.models.FileActorModel.{
+    AddFile,
+    FileAdded,
+    GetFile,
+    State
+  }
+
   private def ProcessFile(fileId: UUID, state: State, command: Command): ReplyEffect[Event, State] =
     command match {
       case AddFile(file, replyTo) =>

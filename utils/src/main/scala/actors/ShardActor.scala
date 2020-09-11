@@ -1,8 +1,16 @@
 package utils.actors
 
-import akka.actor.typed.{ActorSystem, Behavior}
+import akka.actor.typed.{
+	ActorSystem,
+	Behavior
+}
 import akka.cluster.sharding.typed.ShardingEnvelope
-import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityContext, EntityTypeKey}
+import akka.cluster.sharding.typed.scaladsl.{
+	ClusterSharding,
+	Entity,
+	EntityContext,
+	EntityTypeKey
+}
 import utils.traits.CborSerializable
 
 import scala.reflect._

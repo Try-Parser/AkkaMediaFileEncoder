@@ -3,7 +3,10 @@ package media.state.guards
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ShardedDaemonProcess
-import akka.cluster.sharding.typed.{ClusterShardingSettings, ShardedDaemonProcessSettings}
+import akka.cluster.sharding.typed.{
+  ClusterShardingSettings,
+  ShardedDaemonProcessSettings
+}
 import akka.cluster.typed.Cluster
 import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
 import akka.persistence.query.Offset
@@ -11,7 +14,10 @@ import akka.projection.cassandra.scaladsl.CassandraProjection
 import akka.projection.eventsourced.EventEnvelope
 import akka.projection.eventsourced.scaladsl.EventSourcedProvider
 import akka.projection.scaladsl.AtLeastOnceProjection
-import akka.projection.{ProjectionBehavior, ProjectionId}
+import akka.projection.{
+  ProjectionBehavior,
+  ProjectionId
+}
 import media.state.events.EventProcessorSettings
 import media.state.handlers.StateProjectionHandler
 import media.state.models.FileActorModel
