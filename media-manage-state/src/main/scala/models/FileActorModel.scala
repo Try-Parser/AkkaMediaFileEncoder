@@ -2,31 +2,17 @@ package media.state.models
 
 import java.util.UUID
 
-import akka.actor.typed.{
-  ActorRef,
-  ActorSystem,
-  Behavior,
-  SupervisorStrategy
-}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, SupervisorStrategy}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
-import akka.persistence.typed.scaladsl.{
-  Effect,
-  EventSourcedBehavior,
-  ReplyEffect,
-  RetentionCriteria
-}
+import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect, RetentionCriteria}
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
 import media.state.events.EventProcessorSettings
-import utils.actors.{
-  Actor,
-  ShardActor
-}
-import utils.traits.{
-  CborSerializable,
-  Command,
-  Event
-}
+import utils.actors.{Actor, ShardActor}
+import utils.traits.{CborSerializable, Command, Event}
+import ws.schild.jave.info.MultimediaInfo
 
 import scala.concurrent.duration._
 
@@ -58,9 +44,9 @@ class FileActorModel extends ShardActor[Command]("FileActor") {
 object FileActorModel extends Actor[FileActorModel]{
   final case class File(
     fileName: String,
-    fileData: String,
-    description: String,
-    mediaInfo: String,
+    fileData: Source[ByteString, _],
+    extension: String,
+    mediaInfo: MultimediaInfo,
     status: Int,
     fileId: UUID = UUID.randomUUID()) extends CborSerializable
 
@@ -73,7 +59,7 @@ object FileActorModel extends Actor[FileActorModel]{
   }
 
   object State {
-    val empty = State(file = File("", "", "", "", 0), status = None)
+    val empty = State(file = File("", null, "", null, 0), status = None)
   }
 
   final case class AddFile(file: File, replyTo: ActorRef[StatusReply[Get]]) extends Command
