@@ -6,7 +6,7 @@ import akka.actor.typed.eventstream.EventStream
 import akka.projection.eventsourced.EventEnvelope
 import akka.projection.scaladsl.Handler
 import org.slf4j.LoggerFactory
-import media.state.models.FileActorModel.Event
+import utils.traits.Event
 
 import scala.concurrent.Future
 

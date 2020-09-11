@@ -1,20 +1,19 @@
 package utils.actors
 
-import scala.reflect._
-
 import akka.actor.typed.{
 	ActorSystem,
 	Behavior
 }
-
+import akka.cluster.sharding.typed.ShardingEnvelope
 import akka.cluster.sharding.typed.scaladsl.{
 	ClusterSharding,
 	Entity,
-	EntityTypeKey,
-	EntityContext
+	EntityContext,
+	EntityTypeKey
 }
-
 import utils.traits.CborSerializable
+
+import scala.reflect._
 
 class Actor[C <: ShardActor[_]](implicit cTag: ClassTag[C]) {
 	val actor = cTag
@@ -28,6 +27,10 @@ class ShardActor[T <: CborSerializable](name: String) {
 	implicit val actorName: String = name
 
 	def init(key: EntityTypeKey[T])(createBehavior: EntityContext[T] => Behavior[T])
-		(implicit sys: ActorSystem[_]): Unit = 
+		(implicit sys: ActorSystem[_]): Unit =
 			ClusterSharding(sys).init(Entity(key)(createBehavior))
+
+	def init(key: EntityTypeKey[T], createBehavior: EntityContext[T] => Behavior[T])( entityM: Entity[T, ShardingEnvelope[T]] => Entity[T, ShardingEnvelope[T]])(implicit sys: ActorSystem[_]): Unit =
+		ClusterSharding(sys).init(entityM(Entity(key)(createBehavior)))
+
 }
