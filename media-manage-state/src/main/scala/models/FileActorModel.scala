@@ -18,8 +18,15 @@ import akka.persistence.typed.scaladsl.{
   RetentionCriteria
 }
 import media.state.events.EventProcessorSettings
-import utils.actors.{Actor, ShardActor}
-import utils.traits.{CborSerializable, Command, Event}
+import utils.actors.{
+  Actor,
+  ShardActor
+}
+import utils.traits.{
+  CborSerializable,
+  Command,
+  Event
+}
 
 import scala.concurrent.duration._
 

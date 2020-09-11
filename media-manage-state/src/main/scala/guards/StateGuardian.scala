@@ -1,7 +1,10 @@
 package media.state.guards
 
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorSystem, Behavior}
+import akka.actor.typed.{
+  ActorSystem,
+  Behavior
+}
 import akka.cluster.sharding.typed.scaladsl.ShardedDaemonProcess
 import akka.cluster.sharding.typed.{
   ClusterShardingSettings,
