@@ -13,10 +13,9 @@ object ServerService {
 
 	private def startNode(port: Option[String]): Unit = (port match {
 		case Some(p) => Seq(p.toInt)
-		case None => (ConfigFactory.load()
-			.getStringList("akka.cluster.seed-nodes")
-			.asScala
-			.flatMap { case AddressFromURIString(s) => s.port })
+		case None => ConfigFactory.load()
+				.getStringList("media-manager-service.node.port")
+				.asScala.toList.map(_.toInt)
 	}).foreach { nodePort =>
 		val httpPort = ("80" + nodePort.toString.takeRight(2)).toInt
 
@@ -25,7 +24,7 @@ object ServerService {
 
 		ActorSystem[Nothing](
 			media.service.guards.ServiceGuardian(httpPort), 
-			"media-manager-service", 
+			"media-service", 
 			ConfigFactory.parseString(s"""
 				akka.remote.artery.canonical.port = $nodePort
 				media-manager-service.http.port = $httpPort

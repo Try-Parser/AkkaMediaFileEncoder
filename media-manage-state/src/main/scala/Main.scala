@@ -33,15 +33,14 @@ object ServerState {
 
 		(port match {
 			case Some(p) => Seq(p.toInt)
-			case None => (ConfigFactory.load()
-				.getStringList("akka.cluster.seed-nodes")
-				.asScala
-				.flatMap { case AddressFromURIString(s) => s.port })
+			case None => ConfigFactory.load()
+				.getStringList("media-manage-state.node.port")
+				.asScala.toList.map(p => p.toInt)
 		}).view.zipWithIndex.foreach { case (nodePort, i) =>
 
 			val system = ActorSystem[Nothing](
 				media.state.guards.StateGuardian(),
-				"state",
+				"media-state",
 				ConfigFactory.parseString(s"""
 				akka.cluster.roles.0 = ${roles(i)}
 				akka.remote.artery.canonical.port = $nodePort

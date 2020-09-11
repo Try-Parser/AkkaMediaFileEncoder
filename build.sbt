@@ -105,7 +105,8 @@ lazy val mediaManagerService = (project in file("media-manager-service"))
 		libraryDependencies ++= httpDepend ++ actorShardTyped
 	).dependsOn(
 		utils % "compile->compile;test->test",
-		FDK % "compile->compile;test->test"
+		FDK % "compile->compile;test->test",
+		mediaManageState % "compile->compile;test->test"
 	)
 
 lazy val settings = Seq(
