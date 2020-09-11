@@ -8,7 +8,6 @@ import akka.cluster.typed.Cluster
 import com.typesafe.config.ConfigFactory
 import media.state.cassandra.CassandraDB
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object ServerState {
