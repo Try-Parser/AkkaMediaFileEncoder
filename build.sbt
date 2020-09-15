@@ -17,7 +17,7 @@ lazy val Information = new {
 		"-Xlint:deprecation"
 	)
 
-	val akka = "2.6.8"
+	val akka = "2.6.9"
 	val `akka-http` = "10.2.0"
 	val `akka-persistence` = "1.0.1"
 	val `akka-projection` = "0.3"

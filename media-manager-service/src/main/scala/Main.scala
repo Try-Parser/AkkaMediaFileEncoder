@@ -23,9 +23,10 @@ object ServerService {
 
 		ActorSystem[Nothing](
 			media.service.guards.ServiceGuardian(httpPort), 
-			"service", 
+			"media", 
 			ConfigFactory.parseString(s"""
 				media-manager-service.http.port = $httpPort
+				akka.remote.artery.canonical.port = $nodePort
 			""").withFallback(ConfigFactory.load()))
 	}
 }	

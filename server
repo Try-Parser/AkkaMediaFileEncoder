@@ -8,7 +8,8 @@ execState() {
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
 		gnome-terminal -- java -jar media-manage-state/target/state.jar cassandra
-		gnome-terminal -- java -jar media-manage-state/target/state.jar 
+		gnome-terminal -- sbt "project mediaManageState" ~reStart 
+		#gnome-terminal -- java -jar media-manage-state/target/state.jar 
 	fi
 }
 
@@ -17,7 +18,8 @@ execApp() {
 
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		gnome-terminal -- java -jar media-manager-app/target/app.jar
+		gnome-terminal -- sbt "project mediaManagerApp" ~reStart
+		#gnome-terminal -- java -jar media-manager-app/target/app.jar
 	fi
 }
 
@@ -27,7 +29,8 @@ execService() {
 	
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		gnome-terminal -- java -jar media-manager-service/target/service.jar
+		gnome-terminal -- sbt "project mediaManagerService" ~reStart
+		#gnome-terminal -- java -jar media-manager-service/target/service.jar
 	fi
 }
 

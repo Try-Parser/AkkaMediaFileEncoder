@@ -39,7 +39,7 @@ object ServerState {
 
 			val system = ActorSystem[Nothing](
 				media.state.guards.StateGuardian(),
-				"state",
+				"media",
 				ConfigFactory.parseString(s"""
 				akka.cluster.roles.0 = ${roles(i)}
 				akka.remote.artery.canonical.port = $nodePort

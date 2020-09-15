@@ -15,7 +15,9 @@ import media.service.routes.ServiceRoutes
 
 object ServiceGuardian {
 	def apply(port: Int): Behavior[Nothing] = Behaviors.setup[Nothing] { ctx => 
-		FileActor.init()(ctx.system)
+		
+		// FileActor.init()(ctx.system)
+
 		ServiceHttpServer
 			.startServer(ServiceRoutes(ctx.system), port + 10)(ctx.system)
 		Behaviors.empty

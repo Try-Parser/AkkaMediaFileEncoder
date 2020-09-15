@@ -35,20 +35,20 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		post { 
 			withSizeLimit(FileHandler.maxContentSize) { 
 				fileUpload("file") { case (meta, byteSource) => 
-					// fileActorHandler.test()
+					scala.concurrent.Future { fileActorHandler.test() }(scala.concurrent.ExecutionContext.global) 
+					
 					complete("test")
-					onComplete(
-						fileActorHandler
-						.writeFile(meta, byteSource)) {
-							case Success(file) => 
-								val (vid, aud) = (file.mmi.getVideo(), file.mmi.getAudio())
-								complete(FileMedia(
-									FileConverter.getAvailableFormats(vid != null, aud != null),
-									file).toJson)
-							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
+					// onComplete(
+					// 	fileActorHandler
+					// 	.writeFile(meta, byteSource)) {
+					// 		case Success(file) => 
+					// 			val (vid, aud) = (file.mmi.getVideo(), file.mmi.getAudio())
+					// 			complete(FileMedia(
+					// 				FileConverter.getAvailableFormats(vid != null, aud != null),
+					// 				file).toJson)
+					// 		case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 			}}}
-	}}
-}
+	}}//}
 
 	//todo
 	val convertFile: Route = handleRejections(rejectionHandlers) { path("convert") {
