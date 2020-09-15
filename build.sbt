@@ -77,7 +77,7 @@ lazy val mediaManageState = (project in file("media-manage-state"))
 			case _                                                  => MergeStrategy.first
 		},
 		settings,
-		libraryDependencies ++= httpDepend ++ actorShardTyped ++ persistence
+		libraryDependencies ++= httpDepend ++ actorShardTyped ++ persistence ++ mgmt
 	).dependsOn(
 		utils % "compile->compile;test->test",
 		FDK % "compile->compile;test->test"
@@ -117,6 +117,11 @@ lazy val settings = Seq(
 	// artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
 	// 	s"${artifact.name}.${artifact.extension}"
 	// }
+)
+
+lazy val mgmt = Seq(
+  "com.lightbend.akka.management" %% "akka-management" % "1.0.8",
+  "com.lightbend.akka.management" %% "akka-management-cluster-http" % "1.0.8"
 )
 
 lazy val reflect = Seq(

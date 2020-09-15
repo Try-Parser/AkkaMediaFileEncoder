@@ -39,12 +39,17 @@ object ServerState {
 
 			val system = ActorSystem[Nothing](
 				media.state.guards.StateGuardian(),
-				"media-state",
+				"state",
 				ConfigFactory.parseString(s"""
 				akka.cluster.roles.0 = ${roles(i)}
 				akka.remote.artery.canonical.port = $nodePort
 				"""
 			).withFallback(ConfigFactory.load()))
+			
+			import akka.management.scaladsl.AkkaManagement
+
+			if(i == 0)
+				AkkaManagement(system).start()
 
 			if(Cluster(system).selfMember.hasRole("read-model"))
 				CassandraDB.createTables(system)

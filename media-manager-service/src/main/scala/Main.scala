@@ -1,7 +1,6 @@
 package media
 
 import scala.jdk.CollectionConverters._
-import akka.actor.AddressFromURIString
 import akka.actor.typed.ActorSystem
 
 import com.typesafe.config.ConfigFactory
@@ -24,7 +23,7 @@ object ServerService {
 
 		ActorSystem[Nothing](
 			media.service.guards.ServiceGuardian(httpPort), 
-			"media-service", 
+			"service", 
 			ConfigFactory.parseString(s"""
 				akka.remote.artery.canonical.port = $nodePort
 				media-manager-service.http.port = $httpPort

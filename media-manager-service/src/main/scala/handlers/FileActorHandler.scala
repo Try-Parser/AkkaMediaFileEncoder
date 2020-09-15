@@ -1,6 +1,6 @@
 package media.service.handlers
 
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.{ ActorRef, ActorSystem }
 
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
@@ -27,10 +27,36 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	import media.service.handlers.FileHandler.ContentTypeData
 	import media.service.entity.Media
 
+	import media.state.models.FileActorModel.{
+		File,
+		AddFile
+	}
+	import akka.cluster.sharding.typed.ShardingEnvelope
+	import utils.traits.Command
+	import akka.cluster.sharding.typed.scaladsl.Entity
+	import media.state.models.FileActorModel
+	import media.state.events.EventProcessorSettings
+
 	implicit private val mat: Materializer = Materializer(sys.classicSystem)
 	implicit private val ec: ExecutionContext = mat.executionContext
+	implicit private val sett = EventProcessorSettings(sys)
+	implicit private val system = sys
 
 	val key = FileActor.TKey
+
+	private val wirteModelProxy = shards
+		.init(Entity(FileActorModel.TypeKey)(FileActorModel.createBehavior)
+		.withRole("write-model-proxy"))
+
+	def test(): Unit = { 
+		wirteModelProxy ! ShardingEnvelope("file-actor-1", AddFile(File("", null, "", null, 0), _))
+		// shards.entityRefFor(media.state.models.FileActorModel.TypeKey, "write-model-proxy")
+		// .ask()
+	}
+
+	// def test(w: ActorRef[ShardingEnvelope[utils.traits.Command]]): Unit = {
+ //    	w ! ShardingEnvelope("state-1", ) 
+	// }
 
 	def uploadFile(
 		fileName: String, 
