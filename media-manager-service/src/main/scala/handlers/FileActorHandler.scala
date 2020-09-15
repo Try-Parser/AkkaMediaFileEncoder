@@ -44,19 +44,23 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 
 	val key = FileActor.TKey
 
-	private val wirteModelProxy = shards
-		.init(Entity(FileActorModel.TypeKey)(FileActorModel.createBehavior)
-		.withRole("write-model-proxy"))
+	// private val proxy: ActorRef[ShardingEnvelope[Command]] = shards
+	// 	.init(Entity(FileActorModel.TypeKey)(FileActorModel.createBehavior)
+	// 	.withRole("read-model-proxy"))
 
-	def test(): Unit = { 
-		wirteModelProxy ! ShardingEnvelope("file-actor-1", AddFile(File("", null, "", null, 0), _))
-		// shards.entityRefFor(media.state.models.FileActorModel.TypeKey, "write-model-proxy")
-		// .ask()
-	}
 
-	// def test(w: ActorRef[ShardingEnvelope[utils.traits.Command]]): Unit = {
- //    	w ! ShardingEnvelope("state-1", ) 
+	// def test(): Unit = { 
+	// 	println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+ //    println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+ //    println("00000000000000000000000000000      Mr Debug      00000000000000000000000000000")
+ //    println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+ //    println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    
+	// 	proxy ! ShardingEnvelope("file-actor", FileActorModel.Test)
+	// 	// shards.entityRefFor(FileActorModel.TypeKey, "file-actor-1")
+	// 	// .ask(AddFile(File("", null, "", null, 0), _))
 	// }
+
 
 	def uploadFile(
 		fileName: String, 

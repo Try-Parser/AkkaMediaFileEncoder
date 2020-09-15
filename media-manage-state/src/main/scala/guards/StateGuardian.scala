@@ -29,7 +29,7 @@ import utils.traits.Event
 object StateGuardian {
   def apply(): Behavior[Nothing] = Behaviors.setup[Nothing] { context =>
     val system = context.system
-    val settings = EventProcessorSettings(system)
+    val settings = EventProcessorSettings(system)   
     FileActorModel.init(settings)(system)
 
     if (Cluster(system).selfMember.hasRole("read-model")) {

@@ -33,18 +33,20 @@ class FileActorModel extends ShardActor[Command]("FileActor") {
     AddFile,
     FileAdded,
     GetFile,
-    State
+    State,
+    Test
   }
 
   private def ProcessFile(fileId: UUID, state: State, command: Command): ReplyEffect[Event, State] =
     command match {
-      case AddFile(file, replyTo) =>
+      case Test =>         
         println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
         println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
         println("00000000000000000000000000000      Mr Debug      00000000000000000000000000000")
         println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
         println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-
+        Effect.noReply
+      case AddFile(file, replyTo) =>
         Effect
           .persist(FileAdded(fileId, file))
           .thenReply(replyTo)(fileAdded => fileAdded.getFile)
@@ -80,6 +82,8 @@ object FileActorModel extends Actor[FileActorModel]{
     val empty = State(file = File("", null, "", null, 0), status = None)
   }
 
+  object Test extends Command
+
   final case class AddFile(file: File, replyTo: ActorRef[Command]) extends Command
   final case class RemoveFile(fileId: UUID) extends Command
   final case class GetFile(replyTo: ActorRef[Get]) extends Command
@@ -92,6 +96,13 @@ object FileActorModel extends Actor[FileActorModel]{
 
   def createBehavior(e: EntityContext[Command])(implicit sys: ActorSystem[_], sett: EventProcessorSettings): Behavior[Command] = { 
     sys.log.info("Creating identity {} id: {} ", actor.actorName, e.entityId)
+   
+    println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    println("00000000000000000000000000000      Mr Debug      00000000000000000000000000000")
+    println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
+   
     val n = math.abs(e.entityId.hashCode % sett.parallelism)
     val eventTag = sett.tagPrefix + "-" + n
     FileActorModel(UUID.fromString(e.entityId), Set(eventTag))
