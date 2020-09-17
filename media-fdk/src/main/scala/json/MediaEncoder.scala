@@ -1,4 +1,4 @@
-package media.fdk.models
+package media.fdk.json
 
 import spray.json.{
 	JsObject,
@@ -19,28 +19,29 @@ sealed trait Codec {
 final case class VideoCodec(encoders: List[String], decoders: List[String]) extends Codec {
 	override def getDecoders(): List[String] = decoders
 	override def getEncoders(): List[String] = encoders
-	override def toJson(): JsObject = MultiMedia.VideoCodec.write(this).asJsObject
+	override def toJson(): JsObject = MediaEncoder.VideoCodec.write(this).asJsObject
 }
 final case class AudioCodec(encoders: List[String], decoders: List[String]) extends Codec {
 	override def getDecoders(): List[String] = decoders
 	override def getEncoders(): List[String] = encoders
-	override def toJson(): JsObject = MultiMedia.AudioCodec.write(this).asJsObject
+	override def toJson(): JsObject = MediaEncoder.AudioCodec.write(this).asJsObject
 }
 final case class Formats(encoders: List[String], decoders: List[String]) extends Codec {
 	override def getDecoders(): List[String] = decoders
 	override def getEncoders(): List[String] = encoders
-	override def toJson(): JsObject = MultiMedia.Formats.write(this).asJsObject
+	override def toJson(): JsObject = MediaEncoder.Formats.write(this).asJsObject
 }
-final case class MultiMedia(
+
+final case class MediaEncoder(
 	video: VideoCodec, 
 	audio: AudioCodec, 
 	format: Formats, 
 	isVideo: Boolean = false, 
 	isAudio: Boolean = false) {
-		def toJson(): JsObject = MultiMedia.Implicits.write(this).asJsObject
+		def toJson(): JsObject = MediaEncoder.Implicits.write(this).asJsObject
 }
 
-object MultiMedia extends DefaultJsonProtocol {
+object MediaEncoder extends DefaultJsonProtocol {
 	implicit object Formats extends RootJsonFormat[Formats] {
 		def write(f: Formats) = ed[Formats](f)
 		def read(js: JsValue) = ed[Formats](js) ((e, d)  => new Formats(e, d))
@@ -57,7 +58,7 @@ object MultiMedia extends DefaultJsonProtocol {
 	}
 
 	implicit object Implicits {
-		def write(mm: MultiMedia) = {
+		def write(mm: MediaEncoder) = {
 			val vid = if(mm.isVideo) mm.video.toJson else JsString("")
 			val aud = if(mm.isAudio) mm.audio.toJson else JsString("")
 

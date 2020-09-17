@@ -2,7 +2,6 @@ package media
 
 import java.util.concurrent.CountDownLatch
 
-import akka.actor.AddressFromURIString
 import akka.actor.typed.ActorSystem
 import akka.cluster.typed.Cluster
 import com.typesafe.config.ConfigFactory

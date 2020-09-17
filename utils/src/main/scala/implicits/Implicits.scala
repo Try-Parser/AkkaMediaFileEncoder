@@ -1,5 +1,7 @@
 package utils.implicits
 
+import java.util.UUID
+
 object Primitive {
 	implicit class GuardInt(value: Int) {
 		def nonZeroInt(): Option[Int] =
@@ -14,6 +16,12 @@ object Primitive {
 	implicit class GuardString(value: String) {
 		def nonEmptyString(): Option[String] =
 			if (value.trim.isEmpty) None else Some(value.trim)
+
+		def parseUUID(): Option[UUID] = 
+			try Option(UUID.fromString(value)) 
+			catch {
+				case _ : Throwable => None
+			}
 	}
 }
 

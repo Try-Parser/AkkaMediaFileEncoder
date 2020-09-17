@@ -6,6 +6,7 @@ import akka.actor.typed.{
   Behavior
 }
 import akka.cluster.sharding.typed.scaladsl.ShardedDaemonProcess
+
 import akka.cluster.sharding.typed.{
   ClusterShardingSettings,
   ShardedDaemonProcessSettings
@@ -29,7 +30,8 @@ import utils.traits.Event
 object StateGuardian {
   def apply(): Behavior[Nothing] = Behaviors.setup[Nothing] { context =>
     val system = context.system
-    val settings = EventProcessorSettings(system)   
+    val settings = EventProcessorSettings(system)  
+
     FileActorModel.init(settings)(system)
 
     if (Cluster(system).selfMember.hasRole("read-model")) {
@@ -45,6 +47,7 @@ object StateGuardian {
         shardedDaemonProcessSettings,
         Some(ProjectionBehavior.Stop))
     }
+
     Behaviors.empty
   }
 }

@@ -1,4 +1,4 @@
-package media.service.entity
+package media.fdk.codec
 
 object Codec {
 	final case class CodecName(value: String) extends AnyVal

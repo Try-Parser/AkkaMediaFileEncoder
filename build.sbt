@@ -43,17 +43,6 @@ lazy val `root` = (project in file("."))
 		mediaManagerApp
 	)
 
-lazy val utils = (project in file("utils"))
-	.settings(
-		name := "utils",
-	).settings(
-		publish := {},
-		publishLocal := {},
-		publishArtifact := false,
-		skip in publish := true,
-		libraryDependencies ++= httpDepend ++ actorShardTyped ++ reflect ++ json
-	).settings(settings)
-
 lazy val FDK = (project in file("media-fdk"))
 	.settings(
 		name := "fdk"
@@ -62,9 +51,21 @@ lazy val FDK = (project in file("media-fdk"))
 		publishLocal := {},
 		publishArtifact := false,
 		skip in publish := true,
-		libraryDependencies ++= httpDepend ++ actorShardTyped ++ reflect ++ json
+		libraryDependencies ++= httpDepend ++ reflect ++ jave2
 	).dependsOn(utils % "compile->compile;test->test")
 
+lazy val utils = (project in file("utils"))
+	.settings(
+		name := "utils",
+	).settings(
+		publish := {},
+		publishLocal := {},
+		publishArtifact := false,
+		skip in publish := true,
+		libraryDependencies ++= httpDepend 
+			++ clusterShard 
+			++ reflect
+	).settings(settings)
 
 lazy val mediaManageState = (project in file("media-manage-state"))
 	.settings(
@@ -77,7 +78,7 @@ lazy val mediaManageState = (project in file("media-manage-state"))
 			case _                                                  => MergeStrategy.first
 		},
 		settings,
-		libraryDependencies ++= httpDepend ++ actorShardTyped ++ persistence ++ mgmt
+		libraryDependencies ++= meidaStateDependencies
 	).dependsOn(
 		utils % "compile->compile;test->test",
 		FDK % "compile->compile;test->test"
@@ -102,10 +103,9 @@ lazy val mediaManagerService = (project in file("media-manager-service"))
 			case _                                                  => MergeStrategy.first
 		},
 		settings,
-		libraryDependencies ++= httpDepend ++ actorShardTyped
+		libraryDependencies ++= mediaServiceDependencies
 	).dependsOn(
 		utils % "compile->compile;test->test",
-		FDK % "compile->compile;test->test",
 		mediaManageState % "compile->compile;test->test"
 	)
 
@@ -128,32 +128,44 @@ lazy val reflect = Seq(
 	"org.scala-lang" % "scala-reflect" % Information.scala
 )
 
-lazy val actorShardTyped = Seq(
+lazy val clusterShard = Seq(
+	"com.typesafe.akka" %% "akka-serialization-jackson" % Information.akka,
 	"com.typesafe.akka" %% "akka-actor-typed" % Information.akka,
 	"com.typesafe.akka" %% "akka-cluster-sharding-typed" % Information.akka,
 	"ch.qos.logback" % "logback-classic" % Information.logback,
 	"com.typesafe.akka" %% "akka-slf4j" % Information.akka,
 )
 
-lazy val json = Seq(
-	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`
+lazy val stream = Seq(
+	"com.typesafe.akka" %% "akka-stream" % Information.akka,
+)
+
+lazy val jave2 = Seq(
+	// "ws.schild" % "jave-all-deps" % "2.7.3",
+	"ws.schild" % "jave-core" % "3.0.0",
+	"ws.schild" % "jave-nativebin-linux64" % "3.0.0"
 )
 
 lazy val httpDepend = Seq(
-	// "ws.schild" % "jave-all-deps" % "2.7.3",
-	"ws.schild" % "jave-core" % "3.0.0",
-	"ws.schild" % "jave-nativebin-linux64" % "3.0.0",
-	"com.typesafe.akka" %% "akka-stream" % Information.akka,
-	"com.typesafe.akka" %% "akka-serialization-jackson" % Information.akka,
-	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
-) ++ json
+	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`
+) 
 
 lazy val persistence = Seq(
+	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
 	"com.typesafe.akka" %% "akka-persistence-typed" % Information.akka,
 	"com.typesafe.akka" %% "akka-persistence-query" % Information.akka,
 	"com.typesafe.akka" %% "akka-persistence-cassandra" % Information.`akka-persistence`,
 	"com.typesafe.akka" %% "akka-persistence-cassandra-launcher" % Information.`akka-persistence`,
 	"com.lightbend.akka" %% "akka-projection-eventsourced" % Information.`akka-projection`,
 	"com.lightbend.akka" %% "akka-projection-cassandra" % Information.`akka-projection`
+)
+
+lazy val mediaServiceDependencies = httpDepend ++ stream ++ clusterShard
+
+lazy val meidaStateDependencies = (persistence 
+	++ clusterShard 
+	++ jave2
+	++ mgmt
+	++ stream
 )
