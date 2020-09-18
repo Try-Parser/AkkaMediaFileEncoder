@@ -18,8 +18,6 @@ jobs:
       with:
         java-version: 1.8
     - name: Prepping vars
-      run: |
-        echo $DIR_UPLOAD
-        echo $HOME
+      run: echo $HOME
     - name: Run tests
       run: sbt test
