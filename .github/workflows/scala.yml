@@ -18,6 +18,9 @@ jobs:
       with:
         java-version: 1.8
     - name: Prepping vars
-      run: echo $HOME
+      run: |
+        echo $HOME
+        echo `pwd`
+        du -k `pwd`
     - name: Run tests
       run: sbt test
