@@ -1,6 +1,8 @@
 package media.state.models
 
 import java.util.UUID
+import scala.concurrent.duration._
+import com.typesafe.config.ConfigFactory
 
 import akka.actor.typed.{
   ActorRef, 
@@ -18,118 +20,145 @@ import akka.persistence.typed.scaladsl.{
 }
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+
 import media.state.events.EventProcessorSettings
+import media.fdk.codec.{ Video, Audio }
+import media.fdk.codec.Codec.{ Duration, Format }
+
 import utils.actors.{Actor, ShardActor}
 import utils.traits.{CborSerializable, Command, Event}
-
-import ws.schild.jave.MultimediaObject
-
-import scala.concurrent.duration._
-
+import utils.concurrent.FTE
 import utils.traits.CborSerializable
-import com.typesafe.config.ConfigFactory
 
 class FileActorModel extends ShardActor[Command]("FileActor") {
-  import media.fdk.file.FileIOHandler
-
   import media.state.models.FileActorModel.{
     AddFile,
     FileAdded,
     GetFile,
     State,
-    Test
+    Config,
+    FileJournal,
+    Get
   }
 
-  private def ProcessFile(
+  private def processFile(
     fileId: UUID, 
     state: State, 
     command: Command
-  ): ReplyEffect[Event, State] = command match {
-    case Test => 
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      println(s"00000000000000000000000000      Mr Debug Test    0000000000000000000000000000")
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      Effect.noReply
+  )(implicit sys: ActorSystem[_]): FTE[ReplyEffect[Event, State]] = command match {
     case AddFile(file, replyTo) =>
-      
-      val newName: String = FileIOHandler(ConfigFactory.load())
+      val newName = Config
         .handler
         .generateName(file.fileName)
 
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      println("000000000000000000000000     Mr Debug AddFile     0000000000000000000000000000")
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      println("000000000000000000000000000000000000000000000000000000000000000000000000000000")
-      
-
-      // FileIOHandler.writeFile(
-      //   newName,
-      //   file.fileData)
-
-      Effect
-        .persist(FileAdded(fileId, file.updateFileData(newName, null)))
-        .thenReply(replyTo)(state => state.getFile)
-
+      FTE.response(Config
+        .writeFile(
+          newName, 
+          Source.single(ByteString(file.fileData))
+        )(akka.stream.Materializer(sys.classicSystem)).map { _ => 
+          Effect
+            .persist(FileAdded(
+              fileId, 
+              FileJournal(
+                newName,
+                Config.handler.uploadFilePath,
+                file.contentType,
+                file.status,
+                file.fileId)))
+            .thenReply(replyTo)((state: State) => state.getFileJournal)
+        }(sys.executionContext))
     case GetFile(replyTo) =>
-      Effect.reply(replyTo)(state.getFile)
+      FTE.response(Effect.reply[Get, Event, State](replyTo)(state.getFile))
   }
 
-  private def handleEvent(state: State, event: Event): State = {
+  private def handleEvent(state: State, event: Event): State = 
     event match {
       case FileAdded(_, file) => state.insert(file)
     }
-  }
 }
 
 object FileActorModel extends Actor[FileActorModel]{
   import utils.file.ContentType
   import media.fdk.json.MediaInfo
+  import media.fdk.file.FileIOHandler
 
-  case object Test extends Command
+  val Config = FileIOHandler(ConfigFactory.load())
 
+  /*** CMD  ***/
+  final case class AddFile(file: File, replyTo: ActorRef[MediaDescription]) extends Command
+  final case class RemoveFile(fileId: UUID) extends Command
+  final case class GetFile(replyTo: ActorRef[Get]) extends Command
+
+  /*** STATE ***/
+  final case class State(
+    file: FileJournal,
+    status: Option[String]) extends CborSerializable {
+    def insert(file: FileJournal): State = copy(file = file)
+    def isComplete: Boolean = status.isDefined
+    def getFile: Get = Get(file, isComplete)
+    def getFileJournal: MediaDescription = {
+
+      val mMmo = Config.getMultiMedia(file.fileName)
+      val info = mMmo.getInfo()
+      val media = (Video(info.getVideo()), Audio(info.getAudio()))
+
+      MediaDescription(Duration(info.getDuration), Format(info.getFormat), File(
+        file.fileName, null, 
+        file.contentType, 
+        file.status, 
+        file.fileId,
+        media))
+    }
+  }
+
+  object State {
+    val empty = State(file = FileJournal.empty, status = None)
+  }
+  final case class FileAdded(fileId: UUID, file: FileJournal) extends Event
+  final case class FileRemoved(fileId: UUID) extends Event
+
+  /*** PERSIST ***/
   final case class File(
     fileName: String,
-    fileData: String, //Source[ByteString, _],
+    fileData: Array[Byte],
     contentType: String,
     status: Int,
     fileId: UUID = UUID.randomUUID(),
-    mmo: MultimediaObject = null) extends Command {
+    mediaInfo: (Option[Video], Option[Audio]) = null) extends CborSerializable {
 
     def convertToMediaInfo(): MediaInfo = MediaInfo(
       this.fileName, 
-      null, 
+      this.mediaInfo._1, 
+      this.mediaInfo._2, 
       ContentType(this.contentType), 
       this.status, 
       this.fileId
     )
 
-    def updateFileData(newName: String, mmo: MultimediaObject = null): File = 
-      File(newName, this.fileData, this.contentType, this.status, this.fileId, mmo)
+    def updateFileData(newName: String, mmo: (Option[Video], Option[Audio]) = null): File = 
+      File(newName, null, this.contentType, this.status, this.fileId, mmo)
   }
 
-  final case class State(
+  final case class MediaDescription(
+    duration: Duration,
+    format: Format,
     file: File,
-    status: Option[String]) extends CborSerializable {
-    def insert(file: File): State = copy(file = file)
-    def isComplete: Boolean = status.isDefined
-    def getFile: Get = Get(file, isComplete)
+  ) extends CborSerializable
+
+  final case class FileJournal(
+    fileName: String, 
+    fullPath: String, 
+    contentType: String, 
+    status: Int, 
+    fileId: UUID) extends CborSerializable
+
+  object FileJournal {
+    def empty: FileJournal = FileJournal("", "", "", 0, null)
   }
+   
+  final case class Get(journal: FileJournal, status: Boolean) extends CborSerializable
 
-  object State {
-    val empty = State(file = File("", null, null, 0), status = None)
-  }
-
-  final case class AddFile(file: File, replyTo: ActorRef[Get]) extends Command
-  final case class RemoveFile(fileId: UUID) extends Command
-  final case class GetFile(replyTo: ActorRef[Get]) extends Command
-  final case class Get(file: File, status: Boolean) extends CborSerializable
-
-  final case class FileAdded(fileId: UUID, file: File) extends Event
-  final case class FileRemoved(fileId: UUID) extends Event
-
+  /*** INI ***/
   val TypeKey: EntityTypeKey[Command] = EntityTypeKey[Command](actor.actorName)
 
   def createBehavior(e: EntityContext[Command])(implicit sys: ActorSystem[_], sett: EventProcessorSettings): Behavior[Command] = { 
@@ -146,11 +175,14 @@ object FileActorModel extends Actor[FileActorModel]{
     }
   }
 
-  def apply(fileId: UUID, eventTags: Set[String]): Behavior[Command] = 
+  def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): Behavior[Command] = 
     EventSourcedBehavior.withEnforcedReplies[Command, Event, State](
         PersistenceId(TypeKey.name, fileId.toString),
         State.empty,
-        (state, command) => actor.ProcessFile(fileId, state, command),
+        (state, command) => 
+          actor
+            .processFile(fileId, state, command)
+            .unsafeRun(),
         (state, event) => actor.handleEvent(state, event))
       .withTagger(_ => eventTags)
       .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))

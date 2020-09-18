@@ -1,6 +1,7 @@
 package utils.implicits
 
 import java.util.UUID
+import akka.util.ByteString
 
 object Primitive {
 	implicit class GuardInt(value: Int) {
@@ -13,6 +14,11 @@ object Primitive {
 			if (value <= 0) None else Some(value)
 	}
 
+	// implicit class GuardAnyRef(value: Object) {
+	// 	def isNotNull[T](cb: (AnyRef) => Option[T]): Option[T] = 
+	// 		if(value != null) cb(value) else None
+	// }
+
 	implicit class GuardString(value: String) {
 		def nonEmptyString(): Option[String] =
 			if (value.trim.isEmpty) None else Some(value.trim)
@@ -22,6 +28,8 @@ object Primitive {
 			catch {
 				case _ : Throwable => None
 			}
+
+		def toByteString(): ByteString = ByteString(value)
 	}
 }
 

@@ -17,14 +17,15 @@ final case class Video(
 	size: VideoSize,
 	tag: Tag,
 	profile: X264_PROFILE = X264_PROFILE.BASELINE
-)
+) extends utils.traits.CborSerializable
 
 object Video {
-	def apply(info: VideoInfo): Video =
+	def apply(info: VideoInfo): Option[Video] = Option(if(info != null) {
 		Video(
 			BitRate(info.getBitRate()),
 			FrameRate(info.getFrameRate()),
 			CodecName(info.getDecoder()),
 			info.getSize(),
 			Tag(""))
+	} else null)
 }

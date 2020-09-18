@@ -6,6 +6,8 @@ import java.util.UUID
 import akka.util.ByteString
 import akka.stream.scaladsl.Source
 
+import media.fdk.codec.{ Audio, Video }
+
 import spray.json.{
 	JsNumber,
 	DefaultJsonProtocol,
@@ -17,7 +19,8 @@ import ws.schild.jave.MultimediaObject
 
 final case class MediaInfo(
 	fileName: String,
-	fileData: MultimediaObject,
+	video: Option[Video], 
+	audio: Option[Audio],
 	contentType: ContentType.HttpContentType,
 	status: Int,
 	fileId: UUID = UUID.randomUUID()) {
@@ -30,7 +33,7 @@ object MediaInfo extends DefaultJsonProtocol {
 			"file_name" -> JsString(info.fileName),
 			"content_type" -> JsString(info.contentType.toString),
 			"status" -> JsNumber(info.status),
-			"id" -> JsNumber(info.fileId.toString)
+			"id" -> JsString(info.fileId.toString)
 		)
 	}
 }

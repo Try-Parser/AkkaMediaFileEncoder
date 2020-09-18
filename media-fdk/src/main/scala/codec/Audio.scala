@@ -18,15 +18,16 @@ final case class Audio(
 	samplingRate: SamplingRate,
 	quality: Quality,
 	volume: Volume
-)
+) extends utils.traits.CborSerializable
 
 
 object Audio {
-	def apply(info: AudioInfo): Audio = 
+	def apply(info: AudioInfo): Option[Audio] = Option(if(info != null) {
 		Audio(
 			BitRate(info.getBitRate()), 
 			Channels(info.getChannels()),
 			CodecName(info.getDecoder()),
 			SamplingRate(info.getSamplingRate()),
 			Quality(0), Volume(0))
+	} else null)
 }

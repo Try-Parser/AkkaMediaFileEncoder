@@ -33,8 +33,8 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			withSizeLimit(50000000) { 
 				fileUpload("file") { case (meta, byteSource) => 
 					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
-						case Success(multiMedia) => complete(multiMedia)
-							// complete(multiMedia.toJson) 
+						case Success(multiMedia) => //complete(multiMedia)
+							complete(multiMedia.toJson) 
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 					}
 		}}}
@@ -50,10 +50,11 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		// 	}
 		// }
 		get { 
-			onComplete(fileActorHandler.test()) {
-				case Success(test) => complete("yes")
-				case Failure(ex) => complete("error")
-			}
+			complete("convert File")
+			// onComplete(fileActorHandler.test()) {
+			// 	case Success(test) => complete("yes")
+			// 	case Failure(ex) => complete("error")
+			// }
 		}
 	}}
 

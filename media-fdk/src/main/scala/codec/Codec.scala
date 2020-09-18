@@ -10,7 +10,7 @@ object Codec {
 	final case class Quality(value: Int) extends AnyVal
 	final case class FrameRate(value: Double) extends AnyVal
 	final case class PixelFormat(value: String) extends AnyVal
-	final case class Duration(value: Int) extends AnyVal
+	final case class Duration(value: Long) extends AnyVal
 	final case class Format(value: String) extends AnyVal
 }
 

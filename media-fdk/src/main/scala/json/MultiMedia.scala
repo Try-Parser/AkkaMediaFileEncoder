@@ -50,7 +50,9 @@ object MultiMedia extends DefaultJsonProtocol {
 				"sampling_rate" -> JsNumber(info.samplingRate.value),
 				"quality" -> JsNumber(info.quality.value),
 				"volume" -> JsNumber(info.volume.value)
-			)}.getOrElse(JsString("")))
+			)}.getOrElse(JsString("")),
+			"format" -> JsString(mm.format.value)
+		)
 
 		def read(js: JsValue) = js
 			.asJsObject
@@ -79,7 +81,7 @@ object MultiMedia extends DefaultJsonProtocol {
 		private def readFileInfo(js: Map[String, JsValue]): MediaInfo = {
 			import java.util.UUID
 			import utils.implicits.Primitive.GuardString
-			import utils.file.{ ContentType => UContentType }
+			import utils.file.ContentType
 
 			val errorFields = new ListBuffer[String]()
 
@@ -102,21 +104,21 @@ object MultiMedia extends DefaultJsonProtocol {
 					UUID.randomUUID 
 			})
 
-			val content_type: UContentType.HttpContentType = 
-				js.extract[UContentType.HttpContentType]("content_type", UContentType(""))({
-					case JsString(value) => try UContentType(value.toString)
+			val content_type: ContentType.HttpContentType = 
+				js.extract[ContentType.HttpContentType]("content_type", ContentType(""))({
+					case JsString(value) => try ContentType(value.toString)
 						catch { case _: Throwable => 
 							errorFields += "content_type"
-							UContentType("")
+							ContentType("")
 						} 
 					case _ => 
 						errorFields += "content_type"
-						UContentType("")
+						ContentType("")
 				}, f => errorFields += f)
 
 			extractor[MediaInfo](
 				errorFields.toList,
-				MediaInfo(file_name, null, content_type, 0, id))
+				MediaInfo(file_name, None, None, content_type, 0, id))
 		}
 
 		private def readAudio(js: Map[String, JsValue]): Option[Audio] = {

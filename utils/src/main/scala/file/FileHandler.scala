@@ -19,11 +19,10 @@ case class FileHandler(config: Config) {
 	}
 
 	def generateName(oldName: String): String = 
-		s"${UUID.randomUUID.toString}-${Instant.now.toString}.${getExt(oldName)}"
+		s"${UUID.randomUUID.toString}-${Instant.now.getEpochSecond.toString}.${getExt(oldName)}"
 }
 
 object FileHandler {
 	def apply(config: ConfigFactory): FileHandler = FileHandler(config)
-	// def apply(config: Config): FileHandlers = FileHandlers(config)
 	def apply(): FileHandler = FileHandler(ConfigFactory.load())
 }
