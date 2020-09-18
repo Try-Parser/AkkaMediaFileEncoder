@@ -20,7 +20,10 @@ jobs:
     - name: Prepping vars
       run: |
         echo $HOME
+        du -k $HOME
         echo `pwd`
         du -k `pwd`
     - name: Run tests
       run: sbt test
+    - name: Checking the uploaded files
+      run: du -k $HOME
