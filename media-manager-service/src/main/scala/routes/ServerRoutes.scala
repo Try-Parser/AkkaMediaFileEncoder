@@ -25,12 +25,14 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		.toMillis
 		.millis
 
+	lazy val config = com.typesafe.config.ConfigFactory.load()
+
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
 	val uploadFile: Route = handleRejections(rejectionHandlers) { { path("upload") {
 		post { 
-			withSizeLimit(50000000) { 
+			withSizeLimit(config.getLong("media-manager-service.max-content-size")) { 
 				fileUpload("file") { case (meta, byteSource) => 
 					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
 						case Success(multiMedia) => //complete(multiMedia)
