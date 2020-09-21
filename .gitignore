@@ -8,3 +8,4 @@ utils/target
 project/project
 project/target
 .idea/
+cassandra
