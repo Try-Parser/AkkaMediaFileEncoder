@@ -2,12 +2,23 @@
 echo "Initialize project"
 echo ""
 
+echo "Removing local mounts to docker to recover some space please confirm."
+sudo docker volume prune
+echo ""
+
+if [ -z "$(sudo docker ps | grep cassandra)" ]
+then
+	echo "No cassandra found running cassandra docker."
+	sudo docker-compose up -d 
+	echo ""
+fi
+
 execState() {
 	sbt "project mediaManageState" $*
 
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		gnome-terminal -- java -jar media-manage-state/target/state.jar cassandra
+		#gnome-terminal -- java -jar media-manage-state/target/state.jar cassandra
 		gnome-terminal -- sbt "project mediaManageState" ~reStart 
 		#gnome-terminal -- java -jar media-manage-state/target/state.jar 
 	fi

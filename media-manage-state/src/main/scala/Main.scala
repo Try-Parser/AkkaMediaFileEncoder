@@ -1,6 +1,5 @@
 package media
 
-import java.util.concurrent.CountDownLatch
 
 import akka.actor.typed.ActorSystem
 import akka.cluster.typed.Cluster
@@ -12,18 +11,11 @@ import scala.jdk.CollectionConverters.ListHasAsScala
 object ServerState {
 	def main(args: Array[String]): Unit = {
 		args.headOption match {
-			case Some("cassandra") => startDb
 			case Some(port) => startNode(Option(port))
 			case _ => startNode(None) 
 		}
 	}
-
-	private def startDb(): Unit = {
-		CassandraDB.startCassandraDatabase()
-		println("Started Cassandra, press Ctrl + C to kill")
-		new CountDownLatch(1).await
-	}
-
+	
 	private def startNode(port: Option[String]): Unit = {
 		val roles: List[String] = ConfigFactory.load()
 			.getStringList("akka.cluster.roles")

@@ -11,7 +11,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import routes.RejectionHandlers
+import media.service.routes.RejectionHandlers
 
 import scala.concurrent.duration._
 class ServerRoutesSpec extends AnyFunSuite
@@ -26,7 +26,7 @@ class ServerRoutesSpec extends AnyFunSuite
   }
 
   private val configs: Config = ConfigFactory.load()
-  private val mediaServiceTestKit: ActorTestKit = ActorTestKit(configs)
+  // private val mediaServiceTestKit: ActorTestKit = ActorTestKit(configs)
   private val uploadedFilePath: String = ConfigFactory.load().getString("file-directory.upload.path")
   private val routes = ServiceRoutes(system.toTyped)
   private val data = TestFiles.sampleData
@@ -41,7 +41,7 @@ class ServerRoutesSpec extends AnyFunSuite
   // Happy paths
 
   test("the /upload directive should upload a file into the server and return an JSON with file info") {
-    implicit val timeout: Timeout = Timeout(20.seconds)
+    // implicit val timeout: Timeout = Timeout(20.seconds)
     Post("/upload", testUploadFormData) ~> routes ~> check {
       val uploadedFile: File = new File(uploadedFilePath)
       uploadedFile.exists() should be(true)
@@ -77,5 +77,5 @@ class ServerRoutesSpec extends AnyFunSuite
     }
   }
 
-  override def afterAll(): Unit = mediaServiceTestKit.shutdownTestKit()
+  // override def afterAll(): Unit = mediaServiceTestKit.shutdownTestKit()
 }

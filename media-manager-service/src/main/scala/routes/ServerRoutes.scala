@@ -10,7 +10,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes // HttpResponse
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import media.service.handlers.FileActorHandler
-import routes.RejectionHandlers
+import media.service.routes.RejectionHandlers
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport with RejectionHandlers {
 

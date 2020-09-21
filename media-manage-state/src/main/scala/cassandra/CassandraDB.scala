@@ -1,21 +1,12 @@
 package media.state.cassandra
 
-import java.io.File
-
 import akka.actor.typed.ActorSystem
-import akka.persistence.cassandra.testkit.CassandraLauncher
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 object CassandraDB {
-  def startCassandraDatabase(): Unit = {
-    CassandraLauncher.start(
-      new File("media-manage-state/target/cassandra-db"), 
-      CassandraLauncher.DefaultTestConfigResource, clean = false, port = 9042)
-  }
-
   def createTables(system: ActorSystem[_]): Unit = {
     val session =
       CassandraSessionRegistry(system).sessionFor("alpakka.cassandra")

@@ -156,7 +156,7 @@ lazy val persistence = Seq(
 	"com.typesafe.akka" %% "akka-persistence-typed" % Information.akka,
 	"com.typesafe.akka" %% "akka-persistence-query" % Information.akka,
 	"com.typesafe.akka" %% "akka-persistence-cassandra" % Information.`akka-persistence`,
-	"com.typesafe.akka" %% "akka-persistence-cassandra-launcher" % Information.`akka-persistence`,
+	//"com.typesafe.akka" %% "akka-persistence-cassandra-launcher" % Information.`akka-persistence`,
 	"com.lightbend.akka" %% "akka-projection-eventsourced" % Information.`akka-projection`,
 	"com.lightbend.akka" %% "akka-projection-cassandra" % Information.`akka-projection`
 )
