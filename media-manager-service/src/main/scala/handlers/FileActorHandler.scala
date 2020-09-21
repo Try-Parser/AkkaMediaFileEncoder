@@ -35,26 +35,19 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 
 	def uploadFile(meta: FileInfo, byteSource: Source[ByteString, _]): Future[MultiMedia] =  {
 		byteSource.runFold(ByteString.empty)(_ ++ _).flatMap { byteS => 
-			sendToActor(meta, byteS).map { case MediaDescription(duration, format, file) => 
-				val mediaInfo = file.convertToMediaInfo()
+			shards.entityRefFor(TypeKey, regionId)
+				.ask(AddFile(File(
+					meta.fileName, 
+					byteS.toArray, 
+					meta.contentType.toString, 
+					0
+				), _)).map { case MediaDescription(duration, format, mediaInfo) => 
 				MultiMedia(
 					mediaInfo, 
 					duration, 
-					file.mediaInfo._1,
-					file.mediaInfo._2,
 					format)
 			}(sys.executionContext)
 		}(sys.executionContext)
-	}
-
-	def sendToActor(meta: FileInfo, byteSource: ByteString): Future[MediaDescription] = {
-				shards.entityRefFor(TypeKey, regionId)
-				.ask(AddFile(File(
-					meta.fileName, 
-					byteSource.toArray, 
-					meta.contentType.toString, 
-					0
-				), _))
 	}
 }
 

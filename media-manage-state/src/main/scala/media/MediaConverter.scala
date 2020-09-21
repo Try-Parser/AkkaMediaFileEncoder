@@ -39,8 +39,8 @@ object MediaConverter {
 
 	private def convert(config: MultiMedia, source: MultimediaObject): Option[String] = {
 		val attrs: EncodingAttributes = new EncodingAttributes()
-		config.video.map(processVideo(_)).map(attrs.setVideoAttributes(_))
-		config.audio.map(processAudio(_)).map(attrs.setAudioAttributes(_))
+		config.info.video.map(processVideo(_)).map(attrs.setVideoAttributes(_))
+		config.info.audio.map(processAudio(_)).map(attrs.setAudioAttributes(_))
 		attrs.setOutputFormat(config.format.value)
 
 		val fullPath: String = s"${java.util.UUID.randomUUID}.${fileHandler.getExt(config.info.fileName)}"

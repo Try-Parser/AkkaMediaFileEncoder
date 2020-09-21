@@ -6,14 +6,14 @@ import ws.schild.jave.info.MultimediaInfo;
 
 case class Progress(out: PrintStream = System.out, prefix: String = "") extends EncoderProgressListener {
 	override def sourceInfo(info: MultimediaInfo): Unit = {
-		out.println("source info: >>>>>>>>>>>>>>>>>> " + info)
+		out.println("source info: 000000000000000000000000000000 : --- > . < --- : 000000000000000000000000000000 " + info)
 	}
 
 	override def progress(permil: Int): Unit = {
-		out.println("progress: >>>>>>>>>>>>>>>>>> " + permil)
+		out.println("progress: 000000000000000000000000000000 : --- > . < --- : 000000000000000000000000000000 " + permil)
 	}
 
 	override def message(message: String): Unit = {
-		out.println("message: >>>>>>>>>>>>>>>>>> " + message)
+		out.println("message: 000000000000000000000000000000 : --- > . < --- : 000000000000000000000000000000 " + message)
 	}
 }

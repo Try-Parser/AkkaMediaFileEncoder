@@ -20,8 +20,6 @@ import media.fdk.json.MediaInfo
 final case class MultiMedia(
 	info: MediaInfo, 
 	duration: Duration, 
-	video: Option[Video], 
-	audio: Option[Audio],
 	format: Format) {
 		def toJson: JsObject = MultiMedia.Implicits.write(this).asJsObject
 }
@@ -34,7 +32,7 @@ object MultiMedia extends DefaultJsonProtocol {
 		def write(mm: MultiMedia): JsObject = JsObject(
 			"info" -> mm.info.toJson,
 			"duration" -> JsNumber(mm.duration.value),
-			"video" -> mm.video.map { info => JsObject(
+			"video" -> mm.info.video.map { info => JsObject(
 				"bit_rate" -> JsNumber(info.bitRate.value),
 				"frame_rate" -> JsNumber(info.frameRate.value),
 				"codec" -> JsString(info.codec.value),
@@ -43,7 +41,7 @@ object MultiMedia extends DefaultJsonProtocol {
 					"height" -> JsNumber(info.size.getHeight())),
 				"tag" -> JsString(info.tag.value)
 			)}.getOrElse(JsString("")),
-			"audio" -> mm.audio.map { info => JsObject(
+			"audio" -> mm.info.audio.map { info => JsObject(
 				"bit_rate" -> JsNumber(info.bitRate.value),
 				"channels" -> JsNumber(info.channels.value),
 				"codec" -> JsString(info.codec.value),
@@ -62,63 +60,62 @@ object MultiMedia extends DefaultJsonProtocol {
 					JsString(format), 
 					JsObject(audio), 
 					JsObject(video)) => MultiMedia(
-						readFileInfo(info),
+						readFileInfo(info, readAudio(audio), readVideo(video)),
 						Duration(duration.toInt),
-						readVideo(video),
-						readAudio(audio),
 						Format(format))
 				case Seq(JsObject(info), 
 					JsNumber(duration), 
 					JsString(format), 
 					JsObject(audio)) => MultiMedia(
-						readFileInfo(info),
+						readFileInfo(info, readAudio(audio), None),
 						Duration(duration.toInt),
-						Option.empty,
-						readAudio(audio),
 						Format(format))
 			}
 
-		private def readFileInfo(js: Map[String, JsValue]): MediaInfo = {
-			import java.util.UUID
-			import utils.implicits.Primitive.GuardString
-			import utils.file.ContentType
+		private def readFileInfo(
+			js: Map[String, JsValue], 
+			audio: Option[Audio],
+			video: Option[Video]): MediaInfo = {
+				import java.util.UUID
+				import utils.implicits.Primitive.GuardString
+				import utils.file.{ ContentType, HttpContentType }
 
-			val errorFields = new ListBuffer[String]()
+				val errorFields = new ListBuffer[String]()
 
-			val file_name: String = js.extract[String]("file_name", "")({
-				case JsString(value) => value.toString
-				case _ => 
-					errorFields += "file_name"
-					""
-			}, f => errorFields += f)
-
-			val id: UUID = js.extractNonRequired[UUID]("id", UUID.randomUUID)({
-				case JsString(value) => value.toString.parseUUID match {
-					case Some(uuid) => uuid
-					case None => 
-						errorFields += "id"
-						UUID.randomUUID 
-				}
-				case _ =>
-					errorFields += "id"
-					UUID.randomUUID 
-			})
-
-			val content_type: ContentType.HttpContentType = 
-				js.extract[ContentType.HttpContentType]("content_type", ContentType(""))({
-					case JsString(value) => try ContentType(value.toString)
-						catch { case _: Throwable => 
-							errorFields += "content_type"
-							ContentType("")
-						} 
+				val file_name: String = js.extract[String]("file_name", "")({
+					case JsString(value) => value.toString
 					case _ => 
-						errorFields += "content_type"
-						ContentType("")
+						errorFields += "file_name"
+						""
 				}, f => errorFields += f)
 
-			extractor[MediaInfo](
-				errorFields.toList,
-				MediaInfo(file_name, None, None, content_type, 0, id))
+				val id: UUID = js.extractNonRequired[UUID]("id", UUID.randomUUID)({
+					case JsString(value) => value.toString.parseUUID match {
+						case Some(uuid) => uuid
+						case None => 
+							errorFields += "id"
+							UUID.randomUUID 
+					}
+					case _ =>
+						errorFields += "id"
+						UUID.randomUUID 
+				})
+
+				val content_type: HttpContentType = 
+					js.extract[HttpContentType]("content_type", ContentType(""))({
+						case JsString(value) => try ContentType(value.toString)
+							catch { case _: Throwable => 
+								errorFields += "content_type"
+								ContentType("")
+							} 
+						case _ => 
+							errorFields += "content_type"
+							ContentType("")
+					}, f => errorFields += f)
+
+				extractor[MediaInfo](
+					errorFields.toList,
+					MediaInfo(file_name, video, audio, content_type, 0, id))
 		}
 
 		private def readAudio(js: Map[String, JsValue]): Option[Audio] = {

@@ -102,12 +102,14 @@ object FileActorModel extends Actor[FileActorModel]{
       val info = mMmo.getInfo()
       val media = (Video(info.getVideo()), Audio(info.getAudio()))
 
-      MediaDescription(Duration(info.getDuration), Format(info.getFormat), File(
-        file.fileName, null, 
-        file.contentType, 
-        file.status, 
-        file.fileId,
-        media))
+      MediaDescription(Duration(info.getDuration), Format(info.getFormat), MediaInfo(
+        file.fileName,
+        media._1,
+        media._2,
+        ContentType(file.contentType),
+        file.status,
+        file.fileId
+      ))
     }
   }
 
@@ -123,26 +125,12 @@ object FileActorModel extends Actor[FileActorModel]{
     fileData: Array[Byte],
     contentType: String,
     status: Int,
-    fileId: UUID = UUID.randomUUID(),
-    mediaInfo: (Option[Video], Option[Audio]) = null) extends CborSerializable {
-
-    def convertToMediaInfo(): MediaInfo = MediaInfo(
-      this.fileName, 
-      this.mediaInfo._1, 
-      this.mediaInfo._2, 
-      ContentType(this.contentType), 
-      this.status, 
-      this.fileId
-    )
-
-    def updateFileData(newName: String, mmo: (Option[Video], Option[Audio]) = null): File = 
-      File(newName, null, this.contentType, this.status, this.fileId, mmo)
-  }
+    fileId: UUID = UUID.randomUUID()) extends CborSerializable 
 
   final case class MediaDescription(
     duration: Duration,
     format: Format,
-    file: File,
+    mediaInfo: MediaInfo
   ) extends CborSerializable
 
   final case class FileJournal(
