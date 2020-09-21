@@ -62,8 +62,8 @@ lazy val utils = (project in file("utils"))
 		publishLocal := {},
 		publishArtifact := false,
 		skip in publish := true,
-		libraryDependencies ++= httpDepend 
-			++ clusterShard 
+		libraryDependencies ++= httpDepend
+			++ clusterShard
 			++ reflect
 	).settings(settings)
 
@@ -103,7 +103,7 @@ lazy val mediaManagerService = (project in file("media-manager-service"))
 			case _                                                  => MergeStrategy.first
 		},
 		settings,
-		libraryDependencies ++= mediaServiceDependencies
+		libraryDependencies ++= mediaServiceDependencies ++ testDependencies
 	).dependsOn(
 		utils % "compile->compile;test->test",
 		mediaManageState % "compile->compile;test->test"
@@ -149,7 +149,7 @@ lazy val jave2 = Seq(
 lazy val httpDepend = Seq(
 	"com.typesafe.akka" %% "akka-http" % Information.`akka-http`,
 	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`
-) 
+)
 
 lazy val persistence = Seq(
 	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
@@ -161,10 +161,17 @@ lazy val persistence = Seq(
 	"com.lightbend.akka" %% "akka-projection-cassandra" % Information.`akka-projection`
 )
 
+lazy val testDependencies = Seq(
+  "com.typesafe.akka" %% "akka-testkit" % Information.akka % "test",
+  "com.typesafe.akka" %% "akka-actor-testkit-typed" % Information.akka % "test",
+  "com.typesafe.akka" %% "akka-http-testkit" % Information.`akka-http`,
+  "org.scalatest" %% "scalatest" % "3.2.0" % "test"
+)
+
 lazy val mediaServiceDependencies = httpDepend ++ stream ++ clusterShard
 
-lazy val meidaStateDependencies = (persistence 
-	++ clusterShard 
+lazy val meidaStateDependencies = (persistence
+	++ clusterShard
 	++ jave2
 	++ mgmt
 	++ stream

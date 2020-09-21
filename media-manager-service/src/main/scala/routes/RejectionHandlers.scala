@@ -20,6 +20,9 @@ trait RejectionHandlers {
       val message = methodRejections.map(_.message).headOption.getOrElse("Malformed request content")
       complete(StatusCodes.BadRequest, s"$message")
     }
+    .handleNotFound {
+      complete((StatusCodes.NotFound, "The requested resource could not be found."))
+    }
     .result()
 
 }
