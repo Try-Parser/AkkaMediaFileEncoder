@@ -1,6 +1,5 @@
 import java.io.File
 import java.nio.file.Files
-import java.util.UUID
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.typed.scaladsl.adapter._
@@ -18,8 +17,7 @@ import scala.concurrent.duration._
 class ServerRoutesSpec extends AnyFunSuite
   with Matchers
   with BeforeAndAfterAll
-  with ScalatestRouteTest
-  with RejectionHandlers {
+  with ScalatestRouteTest {
 
   private def read(file: File): String = {
     val source = scala.io.Source.fromFile(file, "UTF-8")
@@ -28,7 +26,7 @@ class ServerRoutesSpec extends AnyFunSuite
   }
 
   private val configs: Config = ConfigFactory.load()
-  private val mediaServiceTestKit: ActorTestKit = ActorTestKit("media-service", configs)
+  private val mediaServiceTestKit: ActorTestKit = ActorTestKit(configs)
   private val uploadedFilePath: String = ConfigFactory.load().getString("file-directory.upload.path")
   private val routes = ServiceRoutes(system.toTyped)
   private val data = TestFiles.sampleData

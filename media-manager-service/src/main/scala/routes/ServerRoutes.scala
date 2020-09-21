@@ -28,7 +28,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
-	val uploadFile: Route = { path("upload") {
+	val uploadFile: Route = handleRejections(rejectionHandlers) { { path("upload") {
 		post { 
 			withSizeLimit(50000000) { 
 				fileUpload("file") { case (meta, byteSource) => 
@@ -38,10 +38,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 					}
 		}}}
-	}}
+	}}}
 
 	//todo
-	val convertFile: Route = { path("convert") {
+	val convertFile: Route = handleRejections(rejectionHandlers) { { path("convert") {
 		// post {
 		// 	entity(as[MediaConvert]) { media =>
 		// 		complete("Convert File")
@@ -56,10 +56,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			// 	case Failure(ex) => complete("error")
 			// }
 		}
-	}}
+	}}}
 
 	//test for play
-	val convertStatus: Route = { path("status" / JavaUUID) { id =>
+	val convertStatus: Route = handleRejections(rejectionHandlers) { { path("status" / JavaUUID) { id =>
 		get {
 			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
 			complete(HttpEntity(
@@ -70,10 +70,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				"</audio>"
 			))
 		}
-	}}
+	}}}
 
 	//need revise for play
-	val playFile: Route = { path("play" / JavaUUID) { id =>
+	val playFile: Route = handleRejections(rejectionHandlers) { { path("play" / JavaUUID) { id =>
 		get {
 			complete("playFile")
 			// onComplete(fileActorHandler.play(id)) {
@@ -84,7 +84,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			// }
 		}
 	}}
-}
+}}
 
 object ServiceRoutes {
 	def apply(system: ActorSystem[_]): Route = {
