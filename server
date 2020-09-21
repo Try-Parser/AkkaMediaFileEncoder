@@ -97,7 +97,7 @@ repo() {
 	read -p "Enter combination code: " code
 	echo ""
 
-	if [ -z "$code" -a "$code" != "000" ] 
+	if [ "$code" -ne "000" ] 
 	then 
 		read -p "Would you like to run the module after executing the commands [Y/n]?" run
 		echo ""
