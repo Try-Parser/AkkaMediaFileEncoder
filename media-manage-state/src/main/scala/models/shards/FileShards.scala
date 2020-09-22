@@ -53,7 +53,7 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") {
                 Config.handler.uploadFilePath,
                 file.contentType,
                 file.status,
-                file.fileId)))
+                fileId)))
             .thenReply(replyTo)((state: State) => state.getFileJournal(true))
         }(sys.executionContext))
     case GetFile(replyTo) =>
