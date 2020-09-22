@@ -2,16 +2,33 @@
 echo "Initialize project"
 echo ""
 
-echo "Removing local mounts to docker to recover some space please confirm."
-sudo docker volume prune
-echo ""
+execComposeUp() {
+	if [ -z "$(sudo docker ps | grep cassandra)" ]
+	then
+		echo "No integrated compose found."
+		echo ""
+		echo "Initiating integrated compose."
+		echo ""
+		sudo docker-compose up -d
+	fi
 
-if [ -z "$(sudo docker ps | grep cassandra)" ]
-then
-	echo "No cassandra found running cassandra docker."
-	sudo docker-compose up -d 
 	echo ""
-fi
+	echo "Integrated compose successfully deployed."
+	echo ""
+}
+
+execComposeDown() {
+	echo "Initiating shutdown integrated compose."
+	echo ""
+	sudo docker-compose down 
+	echo ""	
+	echo "Removing local mounts to docker to recover some space please confirm."
+	sudo docker volume prune
+	echo ""
+	echo "Compose shutdown."
+}
+
+execComposeUp
 
 execState() {
 	sbt "project mediaManageState" $*
@@ -71,6 +88,7 @@ repo() {
 	echo "700 - media-manage-state"
 	echo "070 - media-manager-app"
 	echo "007 - media-manager-service"
+	echo "000 - restart integrated compose."
 	echo ""
 
 	echo "Please select combination to run eq: "
@@ -79,12 +97,15 @@ repo() {
 	read -p "Enter combination code: " code
 	echo ""
 
-	read -p "Would you like to run the module after executing the commands [Y/n]?" run
-	echo ""
+	if [ "$code" -ne "000" ] 
+	then 
+		read -p "Would you like to run the module after executing the commands [Y/n]?" run
+		echo ""
 
-	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
-	then
-		compileCmd="$compileCmd assembly"
+		if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
+		then
+			compileCmd="$compileCmd assembly"
+		fi
 	fi
 
 	case $code in 
@@ -138,6 +159,11 @@ repo() {
 			execApp $compileCmd
 			echo ""
 			execService $compileCmd
+		;;
+
+		0 | 00 | 000)
+			execComposeDown
+			execComposeUp
 		;;
 
 		*)

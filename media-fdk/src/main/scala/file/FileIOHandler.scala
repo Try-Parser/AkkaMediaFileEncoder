@@ -23,12 +23,12 @@ case class FileIOHandler(handler: FileHandler) {
 	def getMultiMedia(file: File): MultimediaObject = new MultimediaObject(file)
 
 	def getFileWithPath(fileName: String): Source[ByteString, Future[IOResult]] =
-		FileIO.fromPath(Paths.get(s"${handler.convertFilePath}/$fileName"))
+		FileIO.fromPath(Paths.get(s"${handler.basePath}/${handler.convertFilePath}/$fileName"))
 
 	def writeFile(
 		fileName: String, 
 		source: Source[ByteString, _])(implicit mat: Materializer): Future[IOResult] =
-			source.runWith(FileIO.toPath(Paths.get(s"${handler.uploadFilePath}/$fileName")))
+			source.runWith(FileIO.toPath(Paths.get(s"${handler.basePath}/${handler.uploadFilePath}/$fileName")))
 }
 
 object FileIOHandler {

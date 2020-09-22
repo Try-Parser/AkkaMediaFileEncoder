@@ -35,7 +35,7 @@ object MultiMedia extends DefaultJsonProtocol {
 			"video" -> mm.info.video.map { info => JsObject(
 				"bit_rate" -> JsNumber(info.bitRate.value),
 				"frame_rate" -> JsNumber(info.frameRate.value),
-				"codec" -> JsString(info.codec.value),
+				"decoder" -> JsString(info.codec.value),
 				"size" -> JsObject(
 					"width" -> JsNumber(info.size.getWidth()),
 					"height" -> JsNumber(info.size.getHeight())),
@@ -44,7 +44,7 @@ object MultiMedia extends DefaultJsonProtocol {
 			"audio" -> mm.info.audio.map { info => JsObject(
 				"bit_rate" -> JsNumber(info.bitRate.value),
 				"channels" -> JsNumber(info.channels.value),
-				"codec" -> JsString(info.codec.value),
+				"decoder" -> JsString(info.codec.value),
 				"sampling_rate" -> JsNumber(info.samplingRate.value),
 				"quality" -> JsNumber(info.quality.value),
 				"volume" -> JsNumber(info.volume.value)
@@ -102,15 +102,15 @@ object MultiMedia extends DefaultJsonProtocol {
 				})
 
 				val content_type: HttpContentType = 
-					js.extract[HttpContentType]("content_type", ContentType(""))({
+					js.extract[HttpContentType]("content_type", ContentType.getMp3)({
 						case JsString(value) => try ContentType(value.toString)
 							catch { case _: Throwable => 
 								errorFields += "content_type"
-								ContentType("")
+								ContentType.getMp3
 							} 
 						case _ => 
 							errorFields += "content_type"
-							ContentType("")
+							ContentType.getMp3
 					}, f => errorFields += f)
 
 				extractor[MediaInfo](

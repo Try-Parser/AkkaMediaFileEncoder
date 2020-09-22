@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer
 case class HttpContentType(get: CT)
 
 case object ContentType {
+	def getMp3: HttpContentType = apply("audio/mpeg")
 	def apply(ct: HttpContentType): HttpContentType = ct
 	def apply(ctString: String): HttpContentType =
 		CT.parse(ctString).fold(

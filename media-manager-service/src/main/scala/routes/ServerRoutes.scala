@@ -11,6 +11,8 @@ import akka.http.scaladsl.model.StatusCodes // HttpResponse
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import media.service.handlers.FileActorHandler
 import media.service.routes.RejectionHandlers
+import media.fdk.json.MultiMedia
+import media.state.media.MediaConverter
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport with RejectionHandlers {
 
@@ -25,43 +27,43 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		.toMillis
 		.millis
 
-	lazy val config = com.typesafe.config.ConfigFactory.load()
+	lazy val maxSize = com.typesafe.config.ConfigFactory
+		.load()
+		.getLong("media-manager-service.max-content-size")
 
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
-	val uploadFile: Route = handleRejections(rejectionHandlers) { { path("upload") {
+	val uploadFile: Route = path("upload") {
 		post { 
-			withSizeLimit(config.getLong("media-manager-service.max-content-size")) { 
+			withSizeLimit(maxSize) { 
 				fileUpload("file") { case (meta, byteSource) => 
 					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
-						case Success(multiMedia) => //complete(multiMedia)
-							complete(multiMedia.toJson) 
+						case Success(multiMedia) => complete(multiMedia.toJson) 
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 					}
 		}}}
-	}}}
+	}
 
 	//todo
-	val convertFile: Route = handleRejections(rejectionHandlers) { { path("convert") {
-		// post {
-		// 	entity(as[MediaConvert]) { media =>
-		// 		complete("Convert File")
-		// 		// println(FileConverter.startConvert(media))
-		// 		// complete(media.toJson)
-		// 	}
-		// }
-		get { 
-			complete("convert File")
-			// onComplete(fileActorHandler.test()) {
-			// 	case Success(test) => complete("yes")
-			// 	case Failure(ex) => complete("error")
-			// }
+	val convertFile: Route = path("convert") {
+		post {
+			entity(as[MultiMedia]) { media =>
+				onComplete(fileActorHandler.convertFile(media)) {
+					case Success(mm) => complete(media.toJson)
+					case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString)
+				}
+			}
+	}}
+
+	val mediaCodec: Route = path("codec") {
+		get {
+			complete(MediaConverter.getAvailableFormats().toJson)
 		}
-	}}}
+	}
 
 	//test for play
-	val convertStatus: Route = handleRejections(rejectionHandlers) { { path("status" / JavaUUID) { id =>
+	val convertStatus: Route =  path("status" / JavaUUID) { id =>
 		get {
 			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
 			complete(HttpEntity(
@@ -72,10 +74,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				"</audio>"
 			))
 		}
-	}}}
+	}
 
 	//need revise for play
-	val playFile: Route = handleRejections(rejectionHandlers) { { path("play" / JavaUUID) { id =>
+	val playFile: Route = path("play" / JavaUUID) { id =>
 		get {
 			complete("playFile")
 			// onComplete(fileActorHandler.play(id)) {
@@ -85,12 +87,12 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			// 	case Failure(e) => complete(e.toString)
 			// }
 		}
-	}}
-}}
+	}
+}
 
 object ServiceRoutes {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
-		route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile
+		route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec
 	}
 }

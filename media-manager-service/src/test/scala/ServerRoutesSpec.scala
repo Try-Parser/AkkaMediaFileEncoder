@@ -1,7 +1,6 @@
 import java.io.File
 import java.nio.file.Files
 
-import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.typed.scaladsl.adapter._
 import akka.http.scaladsl.model.Multipart
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -11,9 +10,9 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import media.service.routes.RejectionHandlers
 
 import scala.concurrent.duration._
+
 class ServerRoutesSpec extends AnyFunSuite
   with Matchers
   with BeforeAndAfterAll
@@ -26,7 +25,6 @@ class ServerRoutesSpec extends AnyFunSuite
   }
 
   private val configs: Config = ConfigFactory.load()
-  // private val mediaServiceTestKit: ActorTestKit = ActorTestKit(configs)
   private val uploadedFilePath: String = ConfigFactory.load().getString("file-directory.upload.path")
   private val routes = ServiceRoutes(system.toTyped)
   private val data = TestFiles.sampleData
@@ -40,12 +38,18 @@ class ServerRoutesSpec extends AnyFunSuite
 
   // Happy paths
 
-  test("the /upload directive should upload a file into the server and return an JSON with file info") {
-    // implicit val timeout: Timeout = Timeout(20.seconds)
+  private def doesPathExists(path: String): Boolean = {
+    val pathExists: Boolean = new java.io.File(path).exists()
+    if (pathExists) true else false
+  }
+
+  test("the /upload directive should upload a file into the server") {
+    implicit val timeout: Timeout = Timeout(20.seconds)
     Post("/upload", testUploadFormData) ~> routes ~> check {
+      assert(doesPathExists(uploadedFilePath), s"File Uploaded directory should exist: $uploadedFilePath")
       val uploadedFile: File = new File(uploadedFilePath)
-      uploadedFile.exists() should be(true)
-      read(audio) shouldEqual data
+      assert(uploadedFile.exists(), "File was not uploaded")
+      assert(read(audio) == data, "Uploaded file does not have equal data with the source file")
     }
   }
 
@@ -76,6 +80,4 @@ class ServerRoutesSpec extends AnyFunSuite
       responseAs[String] shouldEqual "Not allowed. Supported request content types List(Set(multipart/form-data))"
     }
   }
-
-  // override def afterAll(): Unit = mediaServiceTestKit.shutdownTestKit()
 }
