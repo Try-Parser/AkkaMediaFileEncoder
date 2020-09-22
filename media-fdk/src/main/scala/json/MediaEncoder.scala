@@ -10,6 +10,8 @@ import spray.json.{
 	JsString
 }
 
+import ws.schild.jave.encode.enums.X264_PROFILE
+
 sealed trait Codec {
 	def getEncoders: List[String]
 	def getDecoders: List[String]
@@ -21,11 +23,13 @@ final case class VideoCodec(encoders: List[String], decoders: List[String]) exte
 	override def getEncoders(): List[String] = encoders
 	override def toJson(): JsObject = MediaEncoder.VideoCodec.write(this).asJsObject
 }
+
 final case class AudioCodec(encoders: List[String], decoders: List[String]) extends Codec {
 	override def getDecoders(): List[String] = decoders
 	override def getEncoders(): List[String] = encoders
 	override def toJson(): JsObject = MediaEncoder.AudioCodec.write(this).asJsObject
 }
+
 final case class Formats(encoders: List[String], decoders: List[String]) extends Codec {
 	override def getDecoders(): List[String] = decoders
 	override def getEncoders(): List[String] = encoders
@@ -65,7 +69,8 @@ object MediaEncoder extends DefaultJsonProtocol {
 			JsObject(
 				"video" -> vid,
 				"audio" -> aud,
-				"format" -> mm.format.toJson)
+				"format" -> mm.format.toJson,
+				"profile" -> JsArray(X264_PROFILE.values.map(v => JsString(v.getModeName)).toVector))
 	}}
 
 	private def ed[T <: Codec](ec: T): JsObject = JsObject(

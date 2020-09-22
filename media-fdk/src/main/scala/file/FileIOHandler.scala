@@ -17,8 +17,8 @@ import utils.file.FileHandler
 
 case class FileIOHandler(handler: FileHandler) {
 
-	def getMultiMedia(name: String): MultimediaObject = 
-		getMultiMedia(handler.getFile(name))
+	def getMultiMedia(name: String, upload: Boolean = true): MultimediaObject = 
+		getMultiMedia(handler.getFile(name, upload))
 
 	def getMultiMedia(file: File): MultimediaObject = new MultimediaObject(file)
 

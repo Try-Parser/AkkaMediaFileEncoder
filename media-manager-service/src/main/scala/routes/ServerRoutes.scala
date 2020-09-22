@@ -50,7 +50,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		post {
 			entity(as[MultiMedia]) { media =>
 				onComplete(fileActorHandler.convertFile(media)) {
-					case Success(mm) => complete(media.toJson)
+					case Success(mm) => complete(mm)
 					case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString)
 				}
 			}

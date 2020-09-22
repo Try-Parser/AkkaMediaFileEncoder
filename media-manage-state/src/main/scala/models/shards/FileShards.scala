@@ -54,7 +54,7 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") {
                 file.contentType,
                 file.status,
                 file.fileId)))
-            .thenReply(replyTo)((state: State) => state.getFileJournal)
+            .thenReply(replyTo)((state: State) => state.getFileJournal(true))
         }(sys.executionContext))
     case GetFile(replyTo) =>
       FTE.response(Effect.reply[Get, Event, State](replyTo)(state.getFile))
@@ -70,11 +70,12 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") {
           4,
           fileId)
 
-      MediaConverter.startConvert(mm, newName)
+      MediaConverter.startConvert(mm, newName).map(println)(sys.executionContext)
 
-      Effect.persist(ConvertedFile(convertedJournal))
-
-      FTE.response(Effect.noReply[Event, State]) 
+      FTE.response(Effect
+        .persist(ConvertedFile(convertedJournal))
+        .thenReply(replyTo)((state: State) => state.getFileProgress))
+      //FTE.response(Effect.noReply[Event, State]) 
   }
 
   def handleEvent(state: State, event: Event): State = 

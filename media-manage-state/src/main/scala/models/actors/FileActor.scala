@@ -38,7 +38,7 @@ object FileActor extends Actor[FileShard]{
   /*** CMD  ***/
   final case class AddFile(file: File, replyTo: ActorRef[MediaDescription]) extends Command
   final case class RemoveFile(fileId: UUID) extends Command
-  final case class ConvertFile(info: MultiMedia, reply: ActorRef[_]) extends Command
+  final case class ConvertFile(info: MultiMedia, reply: ActorRef[FileProgress]) extends Command
   final case class GetFile(replyTo: ActorRef[Get]) extends Command
 
   /*** STATE ***/
@@ -48,9 +48,10 @@ object FileActor extends Actor[FileShard]{
     def insert(file: FileJournal): State = copy(file = file)
     def isComplete: Boolean = status.isDefined
     def getFile: Get = Get(file, isComplete)
-    def getFileJournal: MediaDescription = {
+    def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId) 
+    def getFileJournal(upload: Boolean): MediaDescription = {
 
-      val mMmo = Config.getMultiMedia(file.fileName)
+      val mMmo = Config.getMultiMedia(file.fileName, upload)
       val info = mMmo.getInfo()
       val media = (Video(info.getVideo()), Audio(info.getAudio()))
 
@@ -92,6 +93,8 @@ object FileActor extends Actor[FileShard]{
     contentType: String, 
     status: Int, 
     fileId: UUID) extends CborSerializable
+
+  final case class FileProgress(fileName: String, fileId: UUID, progress: Int = 0) extends CborSerializable
 
   object FileJournal {
     def empty: FileJournal = FileJournal("", "", "", 0, null)
