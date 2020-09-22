@@ -24,10 +24,10 @@ object MediaConverter {
 	private val encoder: Encoder = new Encoder()
 	private val fileHandler = utils.file.FileHandler()
 
-	def startConvert(config: MultiMedia): Future[Option[String]] = Future { 
+	def startConvert(config: MultiMedia, nName: String): Future[Option[String]] = Future { 
 		convert(config, 
 			new MultimediaObject(
-				fileHandler.getFile(s"${config.info.fileName}")))
+				fileHandler.getFile(s"${config.info.fileName}")), nName)
 	}
 
 	def getAvailableFormats(video: Boolean = true, audio: Boolean = true): MediaEncoder = 
@@ -37,18 +37,16 @@ object MediaConverter {
 			Formats(encoder.getSupportedEncodingFormats.toList, encoder.getSupportedDecodingFormats.toList),
 			video, audio)
 
-	private def convert(config: MultiMedia, source: MultimediaObject): Option[String] = {
+	private def convert(config: MultiMedia, source: MultimediaObject, nName: String): Option[String] = {
 		val attrs: EncodingAttributes = new EncodingAttributes()
 		config.info.video.map(processVideo(_)).map(attrs.setVideoAttributes(_))
 		config.info.audio.map(processAudio(_)).map(attrs.setAudioAttributes(_))
 		attrs.setOutputFormat(config.format.value)
 
-		val fullPath: String = s"${java.util.UUID.randomUUID}.${fileHandler.getExt(config.info.fileName)}"
-
 		Option(try {
 			encoder.encode(
 				source, 
-				fileHandler.getFile(fullPath, false), 
+				fileHandler.getFile(nName, false), 
 				attrs,
 				Progress())
 
@@ -56,7 +54,7 @@ object MediaConverter {
 		} catch {
 			case _ : Throwable => Files
 				.deleteIfExists(
-					Paths.get(s"${fileHandler.convertFilePath}/$fullPath"))
+					Paths.get(s"${fileHandler.basePath}/${fileHandler.convertFilePath}/$nName"))
 				null
 		})
 	}

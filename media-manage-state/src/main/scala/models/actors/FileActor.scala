@@ -1,4 +1,4 @@
-package media.state.models
+package media.state.models.actors
 
 import java.util.UUID
 import scala.concurrent.duration._
@@ -13,80 +13,32 @@ import akka.actor.typed.{
 import akka.cluster.sharding.typed.scaladsl.{ EntityTypeKey, EntityContext }
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{
-  Effect, 
   EventSourcedBehavior, 
-  ReplyEffect, 
   RetentionCriteria
 }
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
 
 import media.state.events.EventProcessorSettings
 import media.fdk.codec.{ Video, Audio }
 import media.fdk.codec.Codec.{ Duration, Format }
+import media.fdk.json.MultiMedia
 
-import utils.actors.{Actor, ShardActor}
+import utils.actors.Actor
 import utils.traits.{CborSerializable, Command, Event}
-import utils.concurrent.FTE
-import utils.traits.CborSerializable
 
-class FileActorModel extends ShardActor[Command]("FileActor") {
-  import media.state.models.FileActorModel.{
-    AddFile,
-    FileAdded,
-    GetFile,
-    State,
-    Config,
-    FileJournal,
-    Get
-  }
+import utils.file.ContentType
+import media.fdk.json.MediaInfo
+import media.fdk.file.FileIOHandler
 
-  private def processFile(
-    fileId: UUID, 
-    state: State, 
-    command: Command
-  )(implicit sys: ActorSystem[_]): FTE[ReplyEffect[Event, State]] = command match {
-    case AddFile(file, replyTo) =>
-      val newName = Config
-        .handler
-        .generateName(file.fileName)
+import media.state.models.shards.FileShard
 
-      FTE.response(Config
-        .writeFile(
-          newName, 
-          Source.single(ByteString(file.fileData))
-        )(akka.stream.Materializer(sys.classicSystem)).map { _ => 
-          Effect
-            .persist(FileAdded(
-              fileId, 
-              FileJournal(
-                newName,
-                Config.handler.uploadFilePath,
-                file.contentType,
-                file.status,
-                file.fileId)))
-            .thenReply(replyTo)((state: State) => state.getFileJournal)
-        }(sys.executionContext))
-    case GetFile(replyTo) =>
-      FTE.response(Effect.reply[Get, Event, State](replyTo)(state.getFile))
-  }
-
-  private def handleEvent(state: State, event: Event): State = 
-    event match {
-      case FileAdded(_, file) => state.insert(file)
-    }
-}
-
-object FileActorModel extends Actor[FileActorModel]{
-  import utils.file.ContentType
-  import media.fdk.json.MediaInfo
-  import media.fdk.file.FileIOHandler
+object FileActor extends Actor[FileShard]{
 
   val Config = FileIOHandler(ConfigFactory.load())
 
   /*** CMD  ***/
   final case class AddFile(file: File, replyTo: ActorRef[MediaDescription]) extends Command
   final case class RemoveFile(fileId: UUID) extends Command
+  final case class ConvertFile(info: MultiMedia, reply: ActorRef[_]) extends Command
   final case class GetFile(replyTo: ActorRef[Get]) extends Command
 
   /*** STATE ***/
@@ -118,6 +70,7 @@ object FileActorModel extends Actor[FileActorModel]{
   }
   final case class FileAdded(fileId: UUID, file: FileJournal) extends Event
   final case class FileRemoved(fileId: UUID) extends Event
+  final case class ConvertedFile(journal: FileJournal) extends Event
 
   /*** PERSIST ***/
   final case class File(
@@ -153,7 +106,7 @@ object FileActorModel extends Actor[FileActorModel]{
     sys.log.info("Creating identity {} id: {} ", actor.actorName, e.entityId)
     val n = math.abs(e.entityId.hashCode % sett.parallelism)
     val eventTag = sett.tagPrefix + "-" + n
-    FileActorModel(UUID.fromString(e.entityId), Set(eventTag))
+    apply(UUID.randomUUID, Set(eventTag))
   }
 
   def init(settings: EventProcessorSettings)(implicit sys: ActorSystem[_]): Unit = {

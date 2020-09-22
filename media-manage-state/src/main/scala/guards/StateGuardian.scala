@@ -24,7 +24,7 @@ import akka.projection.{
 }
 import media.state.events.EventProcessorSettings
 import media.state.handlers.StateProjectionHandler
-import media.state.models.FileActorModel
+import media.state.models.actors.FileActor
 import utils.traits.Event
 
 object StateGuardian {
@@ -32,7 +32,7 @@ object StateGuardian {
     val system = context.system
     val settings = EventProcessorSettings(system)  
 
-    FileActorModel.init(settings)(system)
+    FileActor.init(settings)(system)
 
     if (Cluster(system).selfMember.hasRole("read-model")) {
       val shardingSettings = ClusterShardingSettings(system)

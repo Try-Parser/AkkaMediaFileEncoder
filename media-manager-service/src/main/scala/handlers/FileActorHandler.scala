@@ -11,10 +11,11 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
 import akka.actor.typed.ActorSystem
 
-import media.state.models.FileActorModel.{ 
+import media.state.models.actors.FileActor.{ 
 	File, 
 	AddFile, 
 	MediaDescription, 
+	ConvertFile,
 	TypeKey,
 	createBehavior => CreateBehavior
 }
@@ -49,6 +50,11 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 			}(sys.executionContext)
 		}(sys.executionContext)
 	}
+
+	def convertFile(mm: MultiMedia): Future[Unit] = 
+		shards.entityRefFor(TypeKey, regionId)
+			.ask(ConvertFile(mm, _))
+
 }
 
 private[service] object FileActorHandler {
