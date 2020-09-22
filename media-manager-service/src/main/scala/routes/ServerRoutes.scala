@@ -14,7 +14,7 @@ import media.service.routes.RejectionHandlers
 import media.fdk.json.MultiMedia
 import media.state.media.MediaConverter
 
-private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport with RejectionHandlers {
+private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
 	// shards
 	private val sharding = ClusterSharding(system)
@@ -36,10 +36,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 	val uploadFile: Route = path("upload") {
 		post { 
-			withSizeLimit(maxSize) { 
+			withSizeLimit(maxSize) {
 				fileUpload("file") { case (meta, byteSource) => 
 					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
-						case Success(multiMedia) => complete(multiMedia.toJson) 
+						case Success(multiMedia) => complete(multiMedia.toJson)
 						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
 					}
 		}}}
@@ -90,9 +90,9 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	}
 }
 
-object ServiceRoutes {
+object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
-		route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec
+		handleRejections(rejectionHandlers) { route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile }
 	}
 }
