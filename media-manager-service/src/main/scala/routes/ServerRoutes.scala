@@ -93,6 +93,8 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
-		handleRejections(rejectionHandlers) { route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile }
+		handleRejections(rejectionHandlers) { 
+			route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec
+		}
 	}
 }
