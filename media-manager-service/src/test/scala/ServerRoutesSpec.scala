@@ -24,8 +24,9 @@ class ServerRoutesSpec extends AnyFunSuite
     finally source.close()
   }
 
-  private val configs: Config = ConfigFactory.load()
-  private val uploadedFilePath: String = ConfigFactory.load().getString("file-directory.upload.path")
+  private val config = ConfigFactory.load()
+  private val basePath: String = config.getString("file-directory.base-path")
+  private val uploadedFilePath: String = config.getString("file-directory.upload.path")
   private val routes = ServiceRoutes(system.toTyped)
   private val data = TestFiles.sampleData
   private val audio = File.createTempFile("akka-http-temp", ".mp3")
@@ -46,8 +47,9 @@ class ServerRoutesSpec extends AnyFunSuite
   test("the /upload directive should upload a file into the server") {
     implicit val timeout: Timeout = Timeout(20.seconds)
     Post("/upload", testUploadFormData) ~> routes ~> check {
-      assert(doesPathExists(uploadedFilePath), s"File Uploaded directory should exist: $uploadedFilePath")
-      val uploadedFile: File = new File(uploadedFilePath)
+      val filePath = basePath + "/" + uploadedFilePath
+      assert(doesPathExists(filePath), s"File Uploaded directory should exist: $uploadedFilePath")
+      val uploadedFile: File = new File(filePath)
       assert(uploadedFile.exists(), "File was not uploaded")
       assert(read(audio) == data, "Uploaded file does not have equal data with the source file")
     }

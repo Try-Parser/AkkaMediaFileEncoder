@@ -39,15 +39,12 @@ object MultiMedia extends DefaultJsonProtocol {
 				"size" -> JsObject(
 					"width" -> JsNumber(info.size.getWidth()),
 					"height" -> JsNumber(info.size.getHeight())),
-				"tag" -> JsString(info.tag.value)
 			)}.getOrElse(JsString("")),
 			"audio" -> mm.info.audio.map { info => JsObject(
 				"bit_rate" -> JsNumber(info.bitRate.value),
 				"channels" -> JsNumber(info.channels.value),
 				"decoder" -> JsString(info.codec.value),
 				"sampling_rate" -> JsNumber(info.samplingRate.value),
-				"quality" -> JsNumber(info.quality.value),
-				"volume" -> JsNumber(info.volume.value)
 			)}.getOrElse(JsString("")),
 			"format" -> JsString(mm.format.value)
 		)
