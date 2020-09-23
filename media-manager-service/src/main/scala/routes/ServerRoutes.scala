@@ -1,5 +1,6 @@
 package media.service.routes
 
+import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import akka.util.Timeout
@@ -88,13 +89,57 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			// }
 		}
 	}
+	import JsonFormats._
+
+	val getFile: Route = path("getFile" / JavaUUID) { id =>
+		get {
+			onSuccess(fileActorHandler.getFile(id)) { get =>
+				complete(get)
+			}
+		}
+	}
+}
+///example json format
+import spray.json.DefaultJsonProtocol
+import media.state.models.actors.FileActor
+import spray.json.{DeserializationException, JsObject, JsString, JsValue, RootJsonFormat,JsNumber}
+object JsonFormats extends DefaultJsonProtocol {
+	implicit object Implicits extends RootJsonFormat[FileActor.FileJournal] {
+		override def write(file: FileActor.FileJournal): JsValue = JsObject(
+			"file_name" -> JsString(file.fileName),
+			"file_path" -> JsString(file.fullPath),
+			"contentType" -> JsString(file.contentType),
+			"file_status" -> JsNumber(file.status),
+			"file_id" -> JsString(file.fileId.toString)
+		)
+
+		override def read(json: JsValue): FileActor.FileJournal =
+			json.asJsObject.getFields(
+				"file_name",
+				"file_path",
+				"contentType",
+				"file_status",
+				"file_id") match {
+				case Seq(JsString(fileName), JsString(fullPath), JsString(contentType), JsNumber(status), JsString(fileId)) =>
+					FileActor.FileJournal(
+						fileName,
+						fullPath,
+						contentType,
+						status.toInt,
+						UUID.fromString(fileId))
+				case _ => throw DeserializationException("Invalid JSON Object")
+			}
+	}
+
+	implicit val summaryFormat: RootJsonFormat[FileActor.Get] =
+		jsonFormat2(FileActor.Get)
 }
 
 object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
-		handleRejections(rejectionHandlers) { 
-			route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec
+		handleRejections(rejectionHandlers) {
+			route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile
 		}
 	}
 }
