@@ -1,19 +1,27 @@
 package media.service.handlers
 
-import java.util.UUID
-
 import utils.concurrent.SysLog
-import akka.util.{ByteString, Timeout}
+import scala.concurrent.Future
+
+import akka.util.{ ByteString, Timeout }
 import akka.stream.scaladsl.Source
 import akka.http.scaladsl.server.directives.FileInfo
-import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
+import akka.cluster.sharding.typed.scaladsl.{ Entity, ClusterSharding }
 import akka.actor.typed.ActorSystem
-import media.state.models.actors.FileActor.{AddFile, ConvertFile, File, FileProgress, Get, GetFile, MediaDescription, TypeKey, createBehavior => CreateBehavior}
+
+import media.state.models.actors.FileActor.{ 
+	File, 
+	AddFile, 
+	MediaDescription, 
+	ConvertFile,
+	TypeKey,
+	createBehavior => CreateBehavior,
+	FileProgress
+}
 import media.state.events.EventProcessorSettings
 import media.fdk.json.MultiMedia
-import spray.json.{JsNumber, JsObject, JsString}
 
-import scala.concurrent.Future
+import spray.json.{ JsObject, JsString, JsNumber }
 
 private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSystem[_])
 	(implicit timeout: Timeout) extends SysLog(sys.log) {
@@ -28,26 +36,19 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	shards.init(Entity(TypeKey)(CreateBehavior))
 
 	def uploadFile(meta: FileInfo, byteSource: Source[ByteString, _]): Future[MultiMedia] =  {
-		val id = UUID.randomUUID()
 		byteSource.runFold(ByteString.empty)(_ ++ _).flatMap { byteS => 
-			shards.entityRefFor(TypeKey, id.toString)
+			shards.entityRefFor(TypeKey, java.util.UUID.randomUUID.toString)
 				.ask(AddFile(File(
 					meta.fileName, 
 					byteS.toArray, 
 					meta.contentType.toString, 
-					0,
-					id
+					0
 				), _)).map(extractMedia)(sys.executionContext)
 		}(sys.executionContext)
 	}
 
-	def getFile(fileId: UUID): Future[Get] = {
-		shards.entityRefFor(TypeKey, fileId.toString)
-			.ask(GetFile(_))
-	}
-
 	def convertFile(mm: MultiMedia): Future[JsObject] = 
-		shards.entityRefFor(TypeKey, regionId)
+		shards.entityRefFor(TypeKey, mm.info.fileId.toString)
 			.ask(ConvertFile(mm, _)).map { case FileProgress(fileName, id, progress) => 
 				JsObject(
 					"file_name" -> JsString(fileName),
@@ -58,6 +59,7 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 
 	private def extractMedia(media: MediaDescription): MultiMedia = 
 		MultiMedia(media.mediaInfo, media.duration, media.format)
+
 }
 
 private[service] object FileActorHandler {
