@@ -3,14 +3,16 @@ package media.state.models.actors
 import java.util.UUID
 import scala.concurrent.duration._
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.typed.{
-  ActorRef, 
-  ActorSystem, 
-  Behavior, 
+  ActorRef,
+  ActorSystem,
+  Behavior,
   SupervisorStrategy
 }
-import akka.cluster.sharding.typed.scaladsl.{ EntityTypeKey, EntityContext }
+import akka.cluster.sharding.typed.scaladsl.{
+  EntityContext,
+  EntityTypeKey
+}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{
   EventSourcedBehavior, 
@@ -24,7 +26,6 @@ import media.fdk.json.MultiMedia
 
 import utils.actors.Actor
 import utils.traits.{CborSerializable, Command, Event}
-
 import utils.file.ContentType
 import media.fdk.json.MediaInfo
 import media.fdk.file.FileIOHandler
@@ -39,6 +40,7 @@ object FileActor extends Actor[FileShard]{
   final case class AddFile(file: File, replyTo: ActorRef[MediaDescription]) extends Command
   final case class RemoveFile(fileId: UUID) extends Command
   final case class ConvertFile(info: MultiMedia, reply: ActorRef[FileProgress]) extends Command
+  final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
   final case class GetFile(replyTo: ActorRef[Get]) extends Command
 
   /*** STATE ***/
@@ -109,7 +111,7 @@ object FileActor extends Actor[FileShard]{
     sys.log.info("Creating identity {} id: {} ", actor.actorName, e.entityId)
     val n = math.abs(e.entityId.hashCode % sett.parallelism)
     val eventTag = sett.tagPrefix + "-" + n
-    apply(UUID.randomUUID, Set(eventTag))
+    apply(UUID.fromString(e.entityId), Set(eventTag))
   }
 
   def init(settings: EventProcessorSettings)(implicit sys: ActorSystem[_]): Unit = {
