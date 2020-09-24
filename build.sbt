@@ -141,9 +141,9 @@ lazy val stream = Seq(
 )
 
 lazy val jave2 = Seq(
-	// "ws.schild" % "jave-all-deps" % "2.7.3",
-	"ws.schild" % "jave-core" % "3.0.0",
-	"ws.schild" % "jave-nativebin-linux64" % "3.0.0"
+	"ws.schild" % "jave-all-deps" % "3.0.1"
+	// "ws.schild" % "jave-core" % "3.0.0",
+	// "ws.schild" % "jave-nativebin-linux64" % "3.0.0"
 )
 
 lazy val httpDepend = Seq(

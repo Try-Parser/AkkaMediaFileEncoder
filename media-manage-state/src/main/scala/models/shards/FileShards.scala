@@ -1,6 +1,7 @@
 package media.state.models.shards
 
 import java.util.UUID
+import utils.traits.Response
 
 import akka.actor.typed.ActorSystem
 
@@ -19,9 +20,9 @@ import media.state.models.actors.FileActor.{
   State,
   Config,
   FileJournal,
-  Get,
   ConvertFile,
-  ConvertedFile
+  ConvertedFile,
+  UpdatedStatus
 }
 
 import utils.actors.ShardActor
@@ -57,7 +58,7 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") {
             .thenReply(replyTo)((state: State) => state.getFileJournal(true))
         }(sys.executionContext))
     case GetFile(replyTo) =>
-      FTE.response(Effect.reply[Get, Event, State](replyTo)(state.getFile))
+      FTE.response(Effect.reply[Response, Event, State](replyTo)(state.getFile))
     case ConvertFile(mm, replyTo) =>
       val newName = Config
         .handler
@@ -70,17 +71,29 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") {
           4,
           fileId)
 
-      MediaConverter.startConvert(mm, newName).map(println)(sys.executionContext)
+      MediaConverter.startConvert(mm, newName).map { 
+        case Some(name) => Effect
+          .persist(UpdatedStatus("complete"))
+          .thenNoReply
+        case None => Effect
+          .persist(UpdatedStatus("failed"))
+          .thenNoReply
+      }(sys.executionContext)
 
       FTE.response(Effect
         .persist(ConvertedFile(convertedJournal))
         .thenReply(replyTo)((state: State) => state.getFileProgress))
-      //FTE.response(Effect.noReply[Event, State]) 
   }
 
   def handleEvent(state: State, event: Event): State = 
     event match {
-      case FileAdded(_, file) => state.insert(file)
-      case ConvertedFile(file) => state.insert(file)
+      case FileAdded(_, file) => 
+        state.insert(file)
+      case ConvertedFile(file) => 
+        state
+          .insert(file)
+          .updateStatus("inprogress")
+      case UpdatedStatus(status) => 
+        state.updateStatus(status)
     }
 }

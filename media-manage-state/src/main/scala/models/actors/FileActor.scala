@@ -25,7 +25,7 @@ import media.fdk.codec.Codec.{ Duration, Format }
 import media.fdk.json.MultiMedia
 
 import utils.actors.Actor
-import utils.traits.{CborSerializable, Command, Event}
+import utils.traits.{ CborSerializable, Command, Event, Response }
 import utils.file.ContentType
 import media.fdk.json.MediaInfo
 import media.fdk.file.FileIOHandler
@@ -41,18 +41,25 @@ object FileActor extends Actor[FileShard]{
   final case class RemoveFile(fileId: UUID) extends Command
   final case class ConvertFile(info: MultiMedia, reply: ActorRef[FileProgress]) extends Command
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
-  final case class GetFile(replyTo: ActorRef[Get]) extends Command
+  final case class GetFile(replyTo: ActorRef[Response]) extends Command
 
   /*** STATE ***/
   final case class State(
     file: FileJournal,
-    status: Option[String]) extends CborSerializable {
+    status: String) extends CborSerializable {
     def insert(file: FileJournal): State = copy(file = file)
-    def isComplete: Boolean = status.isDefined
-    def getFile: Get = Get(file, isComplete)
+    def isComplete: String = status
+
+    def updateStatus(status: String): State = copy(status = status) 
+    def getFile: Response = {
+      if(file.fileId != null)
+        Get(file, isComplete)
+      else
+        FileNotFound
+    }
+
     def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId) 
     def getFileJournal(upload: Boolean): MediaDescription = {
-
       val mMmo = Config.getMultiMedia(file.fileName, upload)
       val info = mMmo.getInfo()
       val media = (Video(info.getVideo()), Audio(info.getAudio()))
@@ -69,40 +76,41 @@ object FileActor extends Actor[FileShard]{
   }
 
   object State {
-    val empty = State(file = FileJournal.empty, status = None)
+    val empty = State(file = FileJournal.empty, status = "none")
   }
   final case class FileAdded(fileId: UUID, file: FileJournal) extends Event
   final case class FileRemoved(fileId: UUID) extends Event
   final case class ConvertedFile(journal: FileJournal) extends Event
+  final case class UpdatedStatus(status: String) extends Event
 
   /*** PERSIST ***/
   final case class File(
     fileName: String,
     fileData: Array[Byte],
     contentType: String,
-    status: Int,
-    fileId: UUID = UUID.randomUUID()) extends CborSerializable 
+    status: Int) extends Response 
 
   final case class MediaDescription(
     duration: Duration,
     format: Format,
     mediaInfo: MediaInfo
-  ) extends CborSerializable
+  ) extends Response
 
   final case class FileJournal(
     fileName: String, 
     fullPath: String, 
     contentType: String, 
     status: Int, 
-    fileId: UUID) extends CborSerializable
+    fileId: UUID) extends Response
 
-  final case class FileProgress(fileName: String, fileId: UUID, progress: Int = 0) extends CborSerializable
+  final case class FileProgress(fileName: String, fileId: UUID, progress: Int = 0) extends Response
+  object FileNotFound extends Response
 
   object FileJournal {
     def empty: FileJournal = FileJournal("", "", "", 0, null)
   }
    
-  final case class Get(journal: FileJournal, status: Boolean) extends CborSerializable
+  final case class Get(journal: FileJournal, status: String) extends Response
 
   /*** INI ***/
   val TypeKey: EntityTypeKey[Command] = EntityTypeKey[Command](actor.actorName)

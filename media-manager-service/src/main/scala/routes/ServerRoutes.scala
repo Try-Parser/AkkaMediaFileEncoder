@@ -1,8 +1,8 @@
 package media.service.routes
 
-import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+
 import akka.util.Timeout
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.server.Directives._
@@ -10,10 +10,15 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes // HttpResponse
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+
 import media.service.handlers.FileActorHandler
 import media.service.routes.RejectionHandlers
 import media.fdk.json.MultiMedia
 import media.state.media.MediaConverter
+import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal }
+
+import spray.json.{JsValue, JsNumber, JsObject, JsString }
+
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
@@ -41,7 +46,8 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				fileUpload("file") { case (meta, byteSource) => 
 					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
 						case Success(multiMedia) => complete(multiMedia.toJson)
-						case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
+						case Failure(ex) => 
+							complete(StatusCodes.InternalServerError -> ex.toString) 
 					}
 		}}}
 	}
@@ -50,9 +56,13 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	val convertFile: Route = path("convert") {
 		post {
 			entity(as[MultiMedia]) { media =>
+				// fileActorHandler.convertFile(media)
+				// complete(media.toJson)
 				onComplete(fileActorHandler.convertFile(media)) {
 					case Success(mm) => complete(mm)
-					case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString)
+					case Failure(ex) => 
+						println(ex)
+						complete(StatusCodes.InternalServerError -> ex.toString)
 				}
 			}
 	}}
@@ -89,51 +99,35 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			// }
 		}
 	}
-	import JsonFormats._
 
-	val getFile: Route = path("getFile" / JavaUUID) { id =>
+	val getFile: Route = path("file" / JavaUUID) { id =>
 		get {
-			onSuccess(fileActorHandler.getFile(id)) { get =>
-				complete(get)
+			onSuccess(fileActorHandler.getFile(id)) {
+				case Get(journal, status) => complete(
+					JsObject(
+						"journal" -> JsonFormats.Implicits.write(journal).asJsObject,
+						"status" -> JsString(status)
+					))
+				case FileNotFound => complete(
+					JsObject(
+						"id" -> JsString(id.toString),
+						"reason" -> JsString("file not found.")
+				))
 			}
 		}
 	}
 }
-///example json format
-import spray.json.DefaultJsonProtocol
-import media.state.models.actors.FileActor
-import spray.json.{DeserializationException, JsObject, JsString, JsValue, RootJsonFormat,JsNumber}
-object JsonFormats extends DefaultJsonProtocol {
-	implicit object Implicits extends RootJsonFormat[FileActor.FileJournal] {
-		override def write(file: FileActor.FileJournal): JsValue = JsObject(
+
+object JsonFormats extends  {
+	implicit object Implicits {
+		def write(file: FileJournal): JsValue = JsObject(
 			"file_name" -> JsString(file.fileName),
 			"file_path" -> JsString(file.fullPath),
 			"contentType" -> JsString(file.contentType),
 			"file_status" -> JsNumber(file.status),
 			"file_id" -> JsString(file.fileId.toString)
 		)
-
-		override def read(json: JsValue): FileActor.FileJournal =
-			json.asJsObject.getFields(
-				"file_name",
-				"file_path",
-				"contentType",
-				"file_status",
-				"file_id") match {
-				case Seq(JsString(fileName), JsString(fullPath), JsString(contentType), JsNumber(status), JsString(fileId)) =>
-					FileActor.FileJournal(
-						fileName,
-						fullPath,
-						contentType,
-						status.toInt,
-						UUID.fromString(fileId))
-				case _ => throw DeserializationException("Invalid JSON Object")
-			}
-	}
-
-	implicit val summaryFormat: RootJsonFormat[FileActor.Get] =
-		jsonFormat2(FileActor.Get)
-}
+}}
 
 object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
