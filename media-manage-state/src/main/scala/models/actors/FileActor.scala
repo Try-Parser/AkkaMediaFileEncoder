@@ -14,7 +14,6 @@ import akka.cluster.sharding.typed.scaladsl.{
   EntityContext,
   EntityTypeKey
 }
-import akka.actor.typed.scaladsl.Behaviors
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{
   EventSourcedBehavior, 
@@ -66,7 +65,7 @@ object FileActor extends Actor[FileShard]{
         FileNotFound
     }
 
-    def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId) 
+    def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId, status) 
     def getFileJournal(upload: Boolean): MediaDescription = {
       val mMmo = Config.getMultiMedia(file.fileName, upload)
       val info = mMmo.getInfo()
@@ -111,7 +110,7 @@ object FileActor extends Actor[FileShard]{
     status: Int, 
     fileId: UUID) extends Response
 
-  final case class FileProgress(fileName: String, fileId: UUID, progress: Int = 0) extends Response
+  final case class FileProgress(fileName: String, fileId: UUID, status: String = "inprogress") extends Response
   object FileNotFound extends Response
 
   object FileJournal {
@@ -123,7 +122,7 @@ object FileActor extends Actor[FileShard]{
   /*** INI ***/
   val TypeKey: EntityTypeKey[Command] = EntityTypeKey[Command](actor.actorName)
 
-  def createBehavior(e: EntityContext[Command])(implicit sys: ActorSystem[_], sett: EventProcessorSettings): Behavior[Command] = { 
+  def createBehavior(e: EntityContext[Command])(implicit sys: ActorSystem[_], sett: EventProcessorSettings): FTE.BH[Command, Behavior] = { 
     sys.log.info("Creating identity {} id: {} ", actor.actorName, e.entityId)
     val n = math.abs(e.entityId.hashCode % sett.parallelism)
     val eventTag = sett.tagPrefix + "-" + n
@@ -137,12 +136,12 @@ object FileActor extends Actor[FileShard]{
     }
   }
 
-  def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): FTE.BH[Command, Behavior] = FTE.behave { ctx =>
+  def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): FTE.BH[Command, Behavior] = FTE.behave { self =>
     EventSourcedBehavior
       .withEnforcedReplies[Command, Event, State](
         PersistenceId(TypeKey.name, fileId.toString),
         State.empty,
-        actor.processFile(fileId, ctx),
+        actor.processFile(fileId, self),
         actor.handleEvent)
       .withTagger(_ => eventTags)
       .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))

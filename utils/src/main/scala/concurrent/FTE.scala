@@ -1,7 +1,7 @@
 package utils.concurrent
 
-import akka.actor.typed.scaladsl.{Behaviors, ActorContext}
-import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{Behavior, ActorRef}
 
 trait FTE {
 	type CMD[R[_, _], C, E, S] = (S, C) => R[E, S]
@@ -10,9 +10,9 @@ trait FTE {
 
 object FTE {
 	type BH[C, B[_]] = B[C]
-	
-	type BHC[C] = (ActorContext[C]) => Behavior[C]
+
+	type BHC[C] = (ActorRef[C]) => Behavior[C]
 
 	def behave[C](ev: BHC[C]): Behavior[C]  = 
-		Behaviors.setup(ev)	
+		Behaviors.setup(ctx => ev(ctx.self))	
 }

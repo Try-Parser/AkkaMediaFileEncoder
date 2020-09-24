@@ -4,7 +4,7 @@ import java.util.UUID
 import utils.traits.Response
 
 import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.ActorRef
 
 import akka.persistence.typed.scaladsl.{
   Effect, 
@@ -36,7 +36,7 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") with FT
 
   def processFile(
     fileId: UUID, 
-    me: ActorContext[Command]
+    self: ActorRef[Command]
   )(implicit sys: ActorSystem[_]): CMD[ReplyEffect, Command, Event, State] = { 
     (state, cmd) => cmd match {
       case AddFile(file, replyTo) =>
@@ -49,7 +49,7 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") with FT
             newName, 
             Source.single(ByteString(file.fileData))
           )(akka.stream.Materializer(sys.classicSystem)).map { _ => 
-            me.self ! PersistJournal(fileId, FileJournal(
+            self ! PersistJournal(fileId, FileJournal(
               newName,
               Config.handler.uploadFilePath,
               file.contentType,
@@ -78,8 +78,8 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") with FT
             fileId)
 
         MediaConverter.startConvert(mm, newName).map { 
-          case Some(name) => me.self ! UpdateStatus("complete")
-          case None => me.self ! UpdateStatus("failed")
+          case Some(name) => self ! UpdateStatus("complete")
+          case None => self ! UpdateStatus("failed")
         }(sys.executionContext)
 
         Effect
