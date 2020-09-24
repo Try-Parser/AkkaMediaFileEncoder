@@ -1,7 +1,5 @@
 package utils.json
 
-// import scala.collection.mutable.ListBuffer
-
 import spray.json.DeserializationException
 import spray.json.JsValue
 

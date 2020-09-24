@@ -8,3 +8,5 @@ utils/target
 project/project
 project/target
 .idea/
+cassandra
+media-manage-state/ddata-media-*

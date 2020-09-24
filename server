@@ -2,13 +2,42 @@
 echo "Initialize project"
 echo ""
 
+execComposeUp() {
+	if [ -z "$(sudo docker ps | grep cassandra)" ]
+	then
+		echo "No integrated compose found."
+		echo ""
+		echo "Initiating integrated compose."
+		echo ""
+		sudo docker-compose up -d
+	fi
+
+	echo ""
+	echo "Integrated compose successfully deployed."
+	echo ""
+}
+
+execComposeDown() {
+	echo "Initiating shutdown integrated compose."
+	echo ""
+	sudo docker-compose down 
+	echo ""	
+	echo "Removing local mounts to docker to recover some space please confirm."
+	sudo docker volume prune
+	echo ""
+	echo "Compose shutdown."
+}
+
+execComposeUp
+
 execState() {
 	sbt "project mediaManageState" $*
 
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		gnome-terminal -- java -jar media-manage-state/target/state.jar cassandra
-		gnome-terminal -- java -jar media-manage-state/target/state.jar 
+		#gnome-terminal -- java -jar media-manage-state/target/state.jar cassandra
+		gnome-terminal -- sbt "project mediaManageState" ~reStart 
+		#gnome-terminal -- java -jar media-manage-state/target/state.jar 
 	fi
 }
 
@@ -17,7 +46,8 @@ execApp() {
 
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		gnome-terminal -- java -jar media-manager-app/target/app.jar
+		gnome-terminal -- sbt "project mediaManagerApp" ~reStart
+		#gnome-terminal -- java -jar media-manager-app/target/app.jar
 	fi
 }
 
@@ -27,7 +57,8 @@ execService() {
 	
 	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
 	then
-		gnome-terminal -- java -jar media-manager-service/target/service.jar
+		gnome-terminal -- sbt "project mediaManagerService" ~reStart
+		#gnome-terminal -- java -jar media-manager-service/target/service.jar
 	fi
 }
 
@@ -57,6 +88,7 @@ repo() {
 	echo "700 - media-manage-state"
 	echo "070 - media-manager-app"
 	echo "007 - media-manager-service"
+	echo "000 - restart integrated compose."
 	echo ""
 
 	echo "Please select combination to run eq: "
@@ -65,12 +97,15 @@ repo() {
 	read -p "Enter combination code: " code
 	echo ""
 
-	read -p "Would you like to run the module after executing the commands [Y/n]?" run
-	echo ""
+	if [ "$code" -ne "000" ] 
+	then 
+		read -p "Would you like to run the module after executing the commands [Y/n]?" run
+		echo ""
 
-	if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
-	then
-		compileCmd="$compileCmd assembly"
+		if [ -z "$run" -o "$run" == "Y" -o $"run" == "y" ]
+		then
+			compileCmd="$compileCmd assembly"
+		fi
 	fi
 
 	case $code in 
@@ -124,6 +159,11 @@ repo() {
 			execApp $compileCmd
 			echo ""
 			execService $compileCmd
+		;;
+
+		0 | 00 | 000)
+			execComposeDown
+			execComposeUp
 		;;
 
 		*)

@@ -1,5 +1,8 @@
 package utils.implicits
 
+import java.util.UUID
+import akka.util.ByteString
+
 object Primitive {
 	implicit class GuardInt(value: Int) {
 		def nonZeroInt(): Option[Int] =
@@ -11,9 +14,22 @@ object Primitive {
 			if (value <= 0) None else Some(value)
 	}
 
+	// implicit class GuardAnyRef(value: Object) {
+	// 	def isNotNull[T](cb: (AnyRef) => Option[T]): Option[T] = 
+	// 		if(value != null) cb(value) else None
+	// }
+
 	implicit class GuardString(value: String) {
 		def nonEmptyString(): Option[String] =
 			if (value.trim.isEmpty) None else Some(value.trim)
+
+		def parseUUID(): Option[UUID] = 
+			try Option(UUID.fromString(value)) 
+			catch {
+				case _ : Throwable => None
+			}
+
+		def toByteString(): ByteString = ByteString(value)
 	}
 }
 

@@ -8,14 +8,10 @@ import akka.actor.typed.scaladsl.Behaviors
 
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
-
-import media.service.models.FileActor
-
 import media.service.routes.ServiceRoutes
 
 object ServiceGuardian {
 	def apply(port: Int): Behavior[Nothing] = Behaviors.setup[Nothing] { ctx => 
-		FileActor.init()(ctx.system)
 		ServiceHttpServer
 			.startServer(ServiceRoutes(ctx.system), port + 10)(ctx.system)
 		Behaviors.empty

@@ -1,4 +1,4 @@
-package routes
+package media.service.routes
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
@@ -19,6 +19,9 @@ trait RejectionHandlers {
     .handleAll[MalformedRequestContentRejection] { methodRejections =>
       val message = methodRejections.map(_.message).headOption.getOrElse("Malformed request content")
       complete(StatusCodes.BadRequest, s"$message")
+    }
+    .handleNotFound {
+      complete((StatusCodes.NotFound, "The requested resource could not be found."))
     }
     .result()
 

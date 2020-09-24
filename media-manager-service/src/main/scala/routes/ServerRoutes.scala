@@ -1,21 +1,26 @@
 package media.service.routes
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
+
 import akka.util.Timeout
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.model.StatusCodes // HttpResponse
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import media.service.handlers.{FileActorHandler, FileHandler}
-import routes.RejectionHandlers
-import media.service.entity.FileMedia
-import media.service.entity.MediaConvert
-import media.service.handlers.FileConverter
 
-private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport with RejectionHandlers {
+import media.service.handlers.FileActorHandler
+import media.service.routes.RejectionHandlers
+import media.fdk.json.MultiMedia
+import media.state.media.MediaConverter
+import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal }
+
+import spray.json.{JsValue, JsNumber, JsObject, JsString }
+
+
+private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
 	// shards
 	private val sharding = ClusterSharding(system)
@@ -28,37 +33,46 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		.toMillis
 		.millis
 
+	lazy val maxSize = com.typesafe.config.ConfigFactory
+		.load()
+		.getLong("media-manager-service.max-content-size")
+
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
 
-	val uploadFile: Route = handleRejections(rejectionHandlers) { path("upload") {
+	val uploadFile: Route = path("upload") {
 		post { 
-			withSizeLimit(FileHandler.maxContentSize) { 
+			withSizeLimit(maxSize) {
 				fileUpload("file") { case (meta, byteSource) => 
-					onComplete(
-						fileActorHandler
-						.writeFile(meta, byteSource)) {
-							case Success(file) => 
-								val (vid, aud) = (file.mmi.getVideo(), file.mmi.getAudio())
-								complete(FileMedia(
-									FileConverter.getAvailableFormats(vid != null, aud != null),
-									file).toJson)
-							case Failure(ex) => complete(StatusCodes.InternalServerError -> ex.toString) 
-			}}}
-	}}}
+					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
+						case Success(multiMedia) => complete(multiMedia.toJson)
+						case Failure(ex) => 
+							complete(StatusCodes.InternalServerError -> ex.toString) 
+					}
+		}}}
+	}
 
 	//todo
-	val convertFile: Route = handleRejections(rejectionHandlers) { path("convert") {
+	val convertFile: Route = path("convert") {
 		post {
-			entity(as[MediaConvert]) { media =>
-				println(FileConverter.startConvert(media))
-				complete(media.toJson)
+			entity(as[MultiMedia]) { media =>
+				onComplete(fileActorHandler.convertFile(media)) {
+					case Success(mm) => complete(mm)
+					case Failure(ex) => 
+						println(ex)
+						complete(StatusCodes.InternalServerError -> ex.toString)
+				}
 			}
-		}
 	}}
 
+	val mediaCodec: Route = path("codec") {
+		get {
+			complete(MediaConverter.getAvailableFormats().toJson)
+		}
+	}
+
 	//test for play
-	val convertStatus: Route = handleRejections(rejectionHandlers) { path("status" / JavaUUID) { id =>
+	val convertStatus: Route =  path("status" / JavaUUID) { id =>
 		get {
 			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
 			complete(HttpEntity(
@@ -69,25 +83,55 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 				"</audio>"
 			))
 		}
-	}}
+	}
 
 	//need revise for play
-	val playFile: Route = handleRejections(rejectionHandlers) { path("play" / JavaUUID) { id =>
+	val playFile: Route = path("play" / JavaUUID) { id =>
 		get {
-			onComplete(fileActorHandler.play(id)) {
-				case Success(Some(file)) => 
-					complete(HttpResponse(entity = FileHandler.getChunked(s"${file.fileName}.${file.ext}")))
-				case Success(None) => complete(s"Unable to find your file id: $id")
-				case Failure(e) => complete(e.toString)
+			complete("playFile")
+			// onComplete(fileActorHandler.play(id)) {
+			// 	case Success(Some(file)) => 
+			// 		complete(HttpResponse(entity = FileHandler.getChunked(s"${file.fileName}.${file.ext}")))
+			// 	case Success(None) => complete(s"Unable to find your file id: $id")
+			// 	case Failure(e) => complete(e.toString)
+			// }
+		}
+	}
+
+	val getFile: Route = path("file" / JavaUUID) { id =>
+		get {
+			onSuccess(fileActorHandler.getFile(id)) {
+				case Get(journal, status) => complete(
+					JsObject(
+						"journal" -> JsonFormats.Implicits.write(journal).asJsObject,
+						"status" -> JsString(status)
+					))
+				case FileNotFound => complete(
+					JsObject(
+						"id" -> JsString(id.toString),
+						"reason" -> JsString("file not found.")
+				))
 			}
 		}
-	}}
+	}
 }
 
-object ServiceRoutes {
+object JsonFormats extends  {
+	implicit object Implicits {
+		def write(file: FileJournal): JsValue = JsObject(
+			"file_name" -> JsString(file.fileName),
+			"file_path" -> JsString(file.fullPath),
+			"contentType" -> JsString(file.contentType),
+			"file_status" -> JsNumber(file.status),
+			"file_id" -> JsString(file.fileId.toString)
+		)
+}}
+
+object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
-		val cRoute = route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile
-		cRoute
+		handleRejections(rejectionHandlers) {
+			route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile
+		}
 	}
 }

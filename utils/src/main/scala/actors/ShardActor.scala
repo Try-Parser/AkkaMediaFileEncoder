@@ -32,5 +32,4 @@ class ShardActor[T <: CborSerializable](name: String) {
 
 	def init(key: EntityTypeKey[T], createBehavior: EntityContext[T] => Behavior[T])( entityM: Entity[T, ShardingEnvelope[T]] => Entity[T, ShardingEnvelope[T]])(implicit sys: ActorSystem[_]): Unit =
 		ClusterSharding(sys).init(entityM(Entity(key)(createBehavior)))
-
 }

@@ -1,61 +1,104 @@
 package media.service.handlers
 
-import akka.actor.typed.ActorSystem
+import utils.concurrent.SysLog
+import utils.traits.Response
+import java.util.UUID
+import scala.concurrent.Future
 
-import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.util.Timeout
+import akka.util.{ ByteString, Timeout }
+import akka.stream.scaladsl.Source
+import akka.http.scaladsl.server.directives.FileInfo
+import akka.cluster.sharding.typed.scaladsl.{ Entity, ClusterSharding }
+import akka.actor.typed.{ActorSystem, ActorRef}
+
+import media.state.models.actors.FileActor.{ 
+	File, 
+	AddFile, 
+	MediaDescription, 
+	ConvertFile,
+	TypeKey,
+	createBehavior => CreateBehavior,
+	FileProgress,
+	GetFile,
+	Get,
+	FileNotFound
+}
+import media.state.events.EventProcessorSettings
+import media.fdk.json.MultiMedia
+
+import spray.json.{ JsObject, JsString, JsNumber }
 
 private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSystem[_])
-	(implicit timeout: Timeout) {
+	(implicit timeout: Timeout) extends SysLog(sys.log) {
 
-	import java.util.UUID
+	implicit private val sett = EventProcessorSettings(sys)
+	implicit private val system = sys
 
-	import scala.concurrent.{ ExecutionContext, Future }
+	val regionId = com.typesafe.config.ConfigFactory
+		.load()
+		.getString("media-manager-service.region.id")
 	
-	import akka.util.ByteString
-	import akka.stream.Materializer
-	import akka.stream.scaladsl.Source
-	import akka.http.scaladsl.model.ContentType
-	import akka.http.scaladsl.server.directives.FileInfo
-	
-	import media.service.models.FileActor
-	import media.service.models.FileActor.{
-		Upload,
-		Play,
-		FileUpload
+	shards.init(Entity(TypeKey)(CreateBehavior))
+
+	def uploadFile(meta: FileInfo, byteSource: Source[ByteString, _]): Future[MultiMedia] =  {
+		byteSource.runFold(ByteString.empty)(_ ++ _).flatMap { byteS => 
+			shards.entityRefFor(TypeKey, UUID.randomUUID.toString)
+				.ask(AddFile(File(
+					meta.fileName, 
+					byteS.toArray, 
+					meta.contentType.toString,
+					0
+				), _)).map(extractMedia)(sys.executionContext)
+		}(sys.executionContext)
 	}
-	import media.service.handlers.FileHandler.ContentTypeData
-	import media.service.entity.Media
 
-	implicit private val mat: Materializer = Materializer(sys.classicSystem)
-	implicit private val ec: ExecutionContext = mat.executionContext
+	def getFile(fileId: UUID): Future[Response] = {
+		import akka.cluster.sharding.typed.GetShardRegionState
+		import akka.cluster.sharding.ShardRegion.CurrentShardRegionState
+		import akka.actor.typed.scaladsl.Behaviors
 
-	val key = FileActor.TKey
+		val replyTo: ActorRef[CurrentShardRegionState] = 
+			sys.systemActorOf[CurrentShardRegionState](Behaviors.receive { (context, message) =>
+				println(s"00000000000000000000000000000000000000000000000000000000000000000")
+				println(context)
+				println(context.getClass)
+				println(message)
+				println(s"00000000000000000000000000000000000000000000000000000000000000000")
+				Behaviors.stopped
+			}, "region-state")
 
-	def uploadFile(
-		fileName: String, 
-		ext: String, 
-		contentType: ContentType): Future[FileUpload] = shards
-			.entityRefFor(key, FileActor.actor.actorName)
-			.ask(Upload(fileName, ext, ContentTypeData(contentType.toString), _))
+		shards.shardState ! GetShardRegionState(TypeKey, replyTo)
 
-	def play(uuid: UUID): Future[Option[FileUpload]] = shards
-		.entityRefFor(key, FileActor.actor.actorName)
-		.ask(Play(uuid, _))
-
-	def writeFile(
-		meta: FileInfo, 
-		source: Source[ByteString, _]): Future[Media] = {
-		
-		val newName = java.util.UUID.randomUUID.toString
-		val xtn = FileHandler.getXtn(meta.fileName)
-
-		FileHandler.writeFile(s"$newName.$xtn", source).flatMap {
-			_ => uploadFile(newName, xtn, meta.contentType).map {
-				Media(FileHandler.getMultiMedia(s"$newName.$xtn").getInfo(), _)
-			}
-		}
+		shards.entityRefFor(TypeKey, fileId.toString)
+			.ask(GetFile(_))
 	}
+
+	def startConvert(mm: MultiMedia): Future[JsObject] = {
+		getFile(mm.info.fileId).flatMap { 
+			case Get(file, status) => convertFile(mm)
+			case FileNotFound => Future(JsObject(
+				"id" -> JsString(mm.info.fileId.toString),
+				"reason" -> JsString("file not found.")))(sys.executionContext)
+			case _ => 
+				println("IM HERE AT ANY WHAT THE HECK ?") 
+				Future(JsObject("wew" -> JsString("yes")))(sys.executionContext)
+		}(sys.executionContext)
+	}
+
+	def convertFile(mm: MultiMedia): Future[JsObject] = 
+		shards.entityRefFor(TypeKey, UUID.randomUUID.toString)
+			.ask(ConvertFile(mm, _)).map { case FileProgress(fileName, id, progress) => 
+				println("convert file")
+				println(s"$fileName, $id, $progress")
+				JsObject(
+					"file_name" -> JsString(fileName),
+					"id" -> JsString(id.toString),
+					"progress" -> JsNumber(progress)
+				)
+			}(sys.executionContext)
+
+	private def extractMedia(media: MediaDescription): MultiMedia = 
+		MultiMedia(media.mediaInfo, media.duration, media.format)
 
 }
 
