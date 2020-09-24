@@ -26,7 +26,7 @@ import media.state.models.actors.FileActor.{
 import media.state.events.EventProcessorSettings
 import media.fdk.json.MultiMedia
 
-import spray.json.{ JsObject, JsString, JsNumber }
+import spray.json.{ JsObject, JsString }
 
 private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSystem[_])
 	(implicit timeout: Timeout) extends SysLog(sys.log) {
@@ -53,6 +53,7 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	}
 
 	def getFile(fileId: UUID): Future[Response] = {
+		/*** test to get the region state ***/
 		import akka.cluster.sharding.typed.GetShardRegionState
 		import akka.cluster.sharding.ShardRegion.CurrentShardRegionState
 		import akka.actor.typed.scaladsl.Behaviors
@@ -68,7 +69,8 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 			}, "region-state")
 
 		shards.shardState ! GetShardRegionState(TypeKey, replyTo)
-
+		/*** END ***/
+		
 		shards.entityRefFor(TypeKey, fileId.toString)
 			.ask(GetFile(_))
 	}
@@ -93,7 +95,7 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 				JsObject(
 					"file_name" -> JsString(fileName),
 					"id" -> JsString(id.toString),
-					"progress" -> JsNumber(progress)
+					"status" -> JsString(progress)
 				)
 			}(sys.executionContext)
 
