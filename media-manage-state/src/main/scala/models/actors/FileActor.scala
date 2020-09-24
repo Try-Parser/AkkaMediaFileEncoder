@@ -3,6 +3,7 @@ package media.state.models.actors
 import java.util.UUID
 import scala.concurrent.duration._
 import com.typesafe.config.ConfigFactory
+
 import akka.actor.typed.{
   ActorRef,
   ActorSystem,
@@ -13,24 +14,26 @@ import akka.cluster.sharding.typed.scaladsl.{
   EntityContext,
   EntityTypeKey
 }
+import akka.actor.typed.scaladsl.Behaviors
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{
   EventSourcedBehavior, 
-  RetentionCriteria
+  RetentionCriteria,
 }
 
 import media.state.events.EventProcessorSettings
 import media.fdk.codec.{ Video, Audio }
 import media.fdk.codec.Codec.{ Duration, Format }
 import media.fdk.json.MultiMedia
+import media.fdk.json.MediaInfo
+import media.fdk.file.FileIOHandler
+import media.state.models.shards.FileShard
 
 import utils.actors.Actor
 import utils.traits.{ CborSerializable, Command, Event, Response }
 import utils.file.ContentType
-import media.fdk.json.MediaInfo
-import media.fdk.file.FileIOHandler
+import utils.concurrent.FTE
 
-import media.state.models.shards.FileShard
 
 object FileActor extends Actor[FileShard]{
 
@@ -41,7 +44,12 @@ object FileActor extends Actor[FileShard]{
   final case class RemoveFile(fileId: UUID) extends Command
   final case class ConvertFile(info: MultiMedia, reply: ActorRef[FileProgress]) extends Command
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
+  final case class UpdateStatus(status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command
+  final case class PersistJournal(
+    fileId: UUID, 
+    journal: FileJournal, 
+    replyTo: ActorRef[MediaDescription]) extends Command
 
   /*** STATE ***/
   final case class State(
@@ -129,16 +137,15 @@ object FileActor extends Actor[FileShard]{
     }
   }
 
-  def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): Behavior[Command] = 
-    EventSourcedBehavior.withEnforcedReplies[Command, Event, State](
+  def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): FTE.BH[Command, Behavior] = FTE.behave { ctx =>
+    EventSourcedBehavior
+      .withEnforcedReplies[Command, Event, State](
         PersistenceId(TypeKey.name, fileId.toString),
         State.empty,
-        (state, command) => 
-          actor
-            .processFile(fileId, state, command)
-            .unsafeRun(),
-        (state, event) => actor.handleEvent(state, event))
+        actor.processFile(fileId, ctx),
+        actor.handleEvent)
       .withTagger(_ => eventTags)
       .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))
       .onPersistFailure(SupervisorStrategy.restartWithBackoff(200.millis, 5.seconds, 0.1))
+  }
 }

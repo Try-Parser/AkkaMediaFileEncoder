@@ -9,4 +9,4 @@ project/project
 project/target
 .idea/
 cassandra
-media-manage-state/ddata-media-write-modelReplicator-2553
+media-manage-state/ddata-media-*

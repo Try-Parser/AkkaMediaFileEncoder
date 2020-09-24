@@ -1,24 +1,18 @@
 package utils.concurrent
 
-import scala.concurrent.{ Future, Await }
-import scala.concurrent.duration._
+import akka.actor.typed.scaladsl.{Behaviors, ActorContext}
+import akka.actor.typed.Behavior
+
+trait FTE {
+	type CMD[R[_, _], C, E, S] = (S, C) => R[E, S]
+	type EVT[S, E] = (S, E) => S
+}
 
 object FTE {
-	def response[T](cb: T): FTE[T] = 
-		FTE(Future(cb)(scala.concurrent.ExecutionContext.global))
+	type BH[C, B[_]] = B[C]
+	
+	type BHC[C] = (ActorContext[C]) => Behavior[C]
 
-	def response[T](cb: Future[T]): FTE[T] = FTE(cb)
-}
-
-case class Runtime(duration: Int) {
-	def unsafeRun[T](f: Future[T]) = Await.result(f, duration.second) 
-}
-
-object Runtime {
-	def default(): Runtime = Runtime(1) 
-	def apply(duration: Long): Runtime = Runtime(duration)
-}
-
-case class FTE[T](cb: Future[T]) {
-	def unsafeRun(): T = Runtime.default.unsafeRun(cb)
+	def behave[C](ev: BHC[C]): Behavior[C]  = 
+		Behaviors.setup(ev)	
 }
