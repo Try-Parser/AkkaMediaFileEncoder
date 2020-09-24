@@ -56,8 +56,6 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	val convertFile: Route = path("convert") {
 		post {
 			entity(as[MultiMedia]) { media =>
-				// fileActorHandler.convertFile(media)
-				// complete(media.toJson)
 				onComplete(fileActorHandler.convertFile(media)) {
 					case Success(mm) => complete(mm)
 					case Failure(ex) => 
