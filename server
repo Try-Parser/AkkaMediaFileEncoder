@@ -2,6 +2,14 @@
 echo "Initialize project"
 echo ""
 
+if [ -z "$(ls -al | grep cassandra)" ]
+then
+	echo "no cassandra folder found."
+	echo "creating a new one..."
+	sudo mkdir cassandra
+	echo "cassandra folder created successfully"
+fi 
+
 execComposeUp() {
 	if [ -z "$(sudo docker ps | grep cassandra)" ]
 	then
