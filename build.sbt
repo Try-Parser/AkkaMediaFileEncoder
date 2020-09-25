@@ -151,15 +151,16 @@ lazy val httpDepend = Seq(
 	"com.typesafe.akka" %% "akka-http-spray-json" % Information.`akka-http`
 )
 
+lazy val persistenceTyped = Seq("com.typesafe.akka" %% "akka-persistence-typed" % Information.akka)
+
 lazy val persistence = Seq(
 	"com.typesafe.akka" %% "akka-distributed-data" % Information.akka,
-	"com.typesafe.akka" %% "akka-persistence-typed" % Information.akka,
 	"com.typesafe.akka" %% "akka-persistence-query" % Information.akka,
 	"com.typesafe.akka" %% "akka-persistence-cassandra" % Information.`akka-persistence`,
 	//"com.typesafe.akka" %% "akka-persistence-cassandra-launcher" % Information.`akka-persistence`,
 	"com.lightbend.akka" %% "akka-projection-eventsourced" % Information.`akka-projection`,
 	"com.lightbend.akka" %% "akka-projection-cassandra" % Information.`akka-projection`
-)
+) ++ persistenceTyped
 
 lazy val testDependencies = Seq(
   "com.typesafe.akka" %% "akka-testkit" % Information.akka % "test",

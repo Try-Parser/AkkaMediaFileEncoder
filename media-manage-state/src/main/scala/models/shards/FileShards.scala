@@ -30,25 +30,16 @@ import media.state.models.actors.FileActor.{
 
 import utils.actors.ShardActor
 import utils.traits.{ Command, Event }
-import utils.concurrent.FTE
  
-private[models] class FileShard extends ShardActor[Command]("FileActor") with FTE { 
+private[models] class FileShard extends ShardActor[Command, Event, State]("FileActor") { 
 
-  def processFile(
-    fileId: UUID, 
-    self: ActorRef[Command]
-  )(implicit sys: ActorSystem[_]): CMD[ReplyEffect, Command, Event, State] = { 
+  def processFile(fileId: UUID, self: ActorRef[Command])(implicit sys: ActorSystem[_]): CommandHandler[ReplyEffect] = { 
     (state, cmd) => cmd match {
       case AddFile(file, replyTo) =>
-        val newName = Config
-          .handler
-          .generateName(file.fileName)
+        val newName = Config.handler.generateName(file.fileName)
 
-        Config
-          .writeFile(
-            newName, 
-            Source.single(ByteString(file.fileData))
-          )(akka.stream.Materializer(sys.classicSystem)).map { _ => 
+        Config.writeFile(newName, Source.single(ByteString(file.fileData)))(
+          akka.stream.Materializer(sys.classicSystem)).map { _ => 
             self ! PersistJournal(fileId, FileJournal(
               newName,
               Config.handler.uploadFilePath,
@@ -58,17 +49,13 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") with FT
           }(sys.executionContext)
         Effect.none.thenNoReply
       case PersistJournal(id, journal, replyTo) => 
-        Effect
-          .persist(FileAdded(fileId, journal))
-          .thenReply(replyTo)((state: State) => state.getFileJournal(true))
+        Effect.persist(FileAdded(fileId, journal)).thenReply(replyTo)((state: State) => state.getFileJournal(true))
       case GetFile(replyTo) =>
         Effect.reply[Response, Event, State](replyTo)(state.getFile)
       case UpdateStatus(status) => 
         Effect.persist[Event, State](UpdatedStatus(status)).thenNoReply
       case ConvertFile(mm, replyTo) =>
-        val newName = Config
-          .handler
-          .generateName(mm.info.fileName)
+        val newName = Config.handler.generateName(mm.info.fileName)
 
         val convertedJournal = FileJournal(
             newName,
@@ -82,19 +69,17 @@ private[models] class FileShard extends ShardActor[Command]("FileActor") with FT
           case None => self ! UpdateStatus("failed")
         }(sys.executionContext)
 
-        Effect
-          .persist(ConvertedFile(convertedJournal))
-          .thenReply(replyTo)((state: State) => state.getFileProgress)
+        Effect.persist(ConvertedFile(convertedJournal)).thenReply(replyTo)((state: State) => state.getFileProgress)
   }}
 
-  def handleEvent: EVT[State, Event] = { (state, event) => event match {
-    case FileAdded(_, file) => 
-      state.insert(file)
-    case ConvertedFile(file) => 
-      state
-        .insert(file)
-        .updateStatus("inprogress")
-    case UpdatedStatus(status) => 
-      state.updateStatus(status)
-  }}
+  def handleEvent: EventHandler = { (state, event) => event match {
+      case FileAdded(_, file) => 
+        state.insert(file)
+      case ConvertedFile(file) => 
+        state
+          .insert(file)
+          .updateStatus("inprogress")
+      case UpdatedStatus(status) => 
+        state.updateStatus(status)
+    }}
 }
