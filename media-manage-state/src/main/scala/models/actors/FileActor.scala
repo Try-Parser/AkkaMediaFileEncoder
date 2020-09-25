@@ -23,7 +23,7 @@ import akka.persistence.typed.scaladsl.{
 import media.state.events.EventProcessorSettings
 import media.fdk.codec.{ Video, Audio }
 import media.fdk.codec.Codec.{ Duration, Format }
-import media.fdk.json.MultiMedia
+import media.fdk.json.PreferenceSettings
 import media.fdk.json.MediaInfo
 import media.fdk.file.FileIOHandler
 import media.state.models.shards.FileShard
@@ -31,8 +31,6 @@ import media.state.models.shards.FileShard
 import utils.actors.Actor
 import utils.traits.{ CborSerializable, Command, Event, Response }
 import utils.file.ContentType
-import utils.concurrent.FTE
-
 
 object FileActor extends Actor[FileShard]{
 
@@ -41,7 +39,7 @@ object FileActor extends Actor[FileShard]{
   /*** CMD  ***/
   final case class AddFile(file: File, replyTo: ActorRef[MediaDescription]) extends Command
   final case class RemoveFile(fileId: UUID) extends Command
-  final case class ConvertFile(info: MultiMedia, reply: ActorRef[FileProgress]) extends Command
+  final case class ConvertFile(info: PreferenceSettings, reply: ActorRef[FileProgress]) extends Command
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
   final case class UpdateStatus(status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command
@@ -122,7 +120,7 @@ object FileActor extends Actor[FileShard]{
   /*** INI ***/
   val TypeKey: EntityTypeKey[Command] = EntityTypeKey[Command](actor.actorName)
 
-  def createBehavior(e: EntityContext[Command])(implicit sys: ActorSystem[_], sett: EventProcessorSettings): FTE.BH[Command, Behavior] = { 
+  def createBehavior(e: EntityContext[Command])(implicit sys: ActorSystem[_], sett: EventProcessorSettings): Behavior[Command] = { 
     sys.log.info("Creating identity {} id: {} ", actor.actorName, e.entityId)
     val n = math.abs(e.entityId.hashCode % sett.parallelism)
     val eventTag = sett.tagPrefix + "-" + n
@@ -136,7 +134,7 @@ object FileActor extends Actor[FileShard]{
     }
   }
 
-  def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): FTE.BH[Command, Behavior] = FTE.behave { self =>
+  def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): Behavior[Command] = actor.setupSource { self =>
     EventSourcedBehavior
       .withEnforcedReplies[Command, Event, State](
         PersistenceId(TypeKey.name, fileId.toString),

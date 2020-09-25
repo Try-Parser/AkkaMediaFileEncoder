@@ -9,7 +9,7 @@ import akka.util.{ ByteString, Timeout }
 import akka.stream.scaladsl.Source
 import akka.http.scaladsl.server.directives.FileInfo
 import akka.cluster.sharding.typed.scaladsl.{ Entity, ClusterSharding }
-import akka.actor.typed.{ActorSystem, ActorRef}
+import akka.actor.typed.ActorSystem
 
 import media.state.models.actors.FileActor.{ 
 	File, 
@@ -24,7 +24,7 @@ import media.state.models.actors.FileActor.{
 	FileNotFound
 }
 import media.state.events.EventProcessorSettings
-import media.fdk.json.MultiMedia
+import media.fdk.json.{MultiMedia, PreferenceSettings}
 
 import spray.json.{ JsObject, JsString }
 
@@ -53,7 +53,7 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	}
 
 	def getFile(fileId: UUID): Future[Response] = {
-		/*** test to get the region state ***/
+		/*** test to get the region state 
 		import akka.cluster.sharding.typed.GetShardRegionState
 		import akka.cluster.sharding.ShardRegion.CurrentShardRegionState
 		import akka.actor.typed.scaladsl.Behaviors
@@ -69,29 +69,27 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 			}, "region-state")
 
 		shards.shardState ! GetShardRegionState(TypeKey, replyTo)
-		/*** END ***/
+		 END ***/
 		
 		shards.entityRefFor(TypeKey, fileId.toString)
 			.ask(GetFile(_))
 	}
 
-	def startConvert(mm: MultiMedia): Future[JsObject] = {
-		getFile(mm.info.fileId).flatMap { 
-			case Get(file, status) => convertFile(mm)
+	def startConvert(mm: PreferenceSettings): Future[JsObject] = {
+		getFile(mm.id).flatMap { 
+			case Get(file, status) => 
+				convertFile(mm.updateFileName(file.fileName))
 			case FileNotFound => Future(JsObject(
-				"id" -> JsString(mm.info.fileId.toString),
+				"id" -> JsString(mm.id.toString),
 				"reason" -> JsString("file not found.")))(sys.executionContext)
 			case _ => 
-				println("IM HERE AT ANY WHAT THE HECK ?") 
-				Future(JsObject("wew" -> JsString("yes")))(sys.executionContext)
+				Future(JsObject("error" -> JsString("unknown")))(sys.executionContext)
 		}(sys.executionContext)
 	}
 
-	def convertFile(mm: MultiMedia): Future[JsObject] = 
+	def convertFile(mm: PreferenceSettings): Future[JsObject] = 
 		shards.entityRefFor(TypeKey, UUID.randomUUID.toString)
 			.ask(ConvertFile(mm, _)).map { case FileProgress(fileName, id, progress) => 
-				println("convert file")
-				println(s"$fileName, $id, $progress")
 				JsObject(
 					"file_name" -> JsString(fileName),
 					"id" -> JsString(id.toString),

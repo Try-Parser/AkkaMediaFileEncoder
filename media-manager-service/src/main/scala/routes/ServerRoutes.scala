@@ -13,7 +13,7 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 
 import media.service.handlers.FileActorHandler
 import media.service.routes.RejectionHandlers
-import media.fdk.json.MultiMedia
+import media.fdk.json.PreferenceSettings
 import media.state.media.MediaConverter
 import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal }
 
@@ -45,18 +45,17 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			withSizeLimit(maxSize) {
 				fileUpload("file") { case (meta, byteSource) => 
 					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
-						case Success(multiMedia) => complete(multiMedia.toJson)
+						case Success(multiMedia) => complete(PreferenceSettings(multiMedia).toJson)
 						case Failure(ex) => 
 							complete(StatusCodes.InternalServerError -> ex.toString) 
 					}
 		}}}
 	}
 
-	//todo
 	val convertFile: Route = path("convert") {
 		post {
-			entity(as[MultiMedia]) { media =>
-				onComplete(fileActorHandler.convertFile(media)) {
+			entity(as[PreferenceSettings]) { media =>
+				onComplete(fileActorHandler.startConvert(media)) {
 					case Success(mm) => complete(mm)
 					case Failure(ex) => 
 						println(ex)
