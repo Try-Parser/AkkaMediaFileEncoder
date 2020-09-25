@@ -23,7 +23,7 @@ import akka.persistence.typed.scaladsl.{
 import media.state.events.EventProcessorSettings
 import media.fdk.codec.{ Video, Audio }
 import media.fdk.codec.Codec.{ Duration, Format }
-import media.fdk.json.MultiMedia
+import media.fdk.json.PreferenceSettings
 import media.fdk.json.MediaInfo
 import media.fdk.file.FileIOHandler
 import media.state.models.shards.FileShard
@@ -39,7 +39,7 @@ object FileActor extends Actor[FileShard]{
   /*** CMD  ***/
   final case class AddFile(file: File, replyTo: ActorRef[MediaDescription]) extends Command
   final case class RemoveFile(fileId: UUID) extends Command
-  final case class ConvertFile(info: MultiMedia, reply: ActorRef[FileProgress]) extends Command
+  final case class ConvertFile(info: PreferenceSettings, reply: ActorRef[FileProgress]) extends Command
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
   final case class UpdateStatus(status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command

@@ -21,6 +21,9 @@ case class FileHandler(config: Config) {
 
 	def generateName(oldName: String): String = 
 		s"${UUID.randomUUID.toString}-${Instant.now.getEpochSecond.toString}.${getExt(oldName)}"
+
+	def generateName(oldName: String, ext: String): String = 
+		s"${UUID.randomUUID.toString}-${Instant.now.getEpochSecond.toString}.$ext"
 }
 
 object FileHandler {

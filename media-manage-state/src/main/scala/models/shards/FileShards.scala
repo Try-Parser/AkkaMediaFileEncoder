@@ -55,12 +55,12 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
       case UpdateStatus(status) => 
         Effect.persist[Event, State](UpdatedStatus(status)).thenNoReply
       case ConvertFile(mm, replyTo) =>
-        val newName = Config.handler.generateName(mm.info.fileName)
+        val newName = Config.handler.generateName(mm.fileName, mm.extension)
 
         val convertedJournal = FileJournal(
             newName,
             Config.handler.convertFilePath,
-            mm.info.contentType.get.toString,
+            "",
             4,
             fileId)
 

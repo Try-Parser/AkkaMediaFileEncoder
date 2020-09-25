@@ -15,8 +15,6 @@ import spray.json.{
 	JsObject
 }
 
-import ws.schild.jave.MultimediaObject
-
 final case class MediaInfo(
 	fileName: String,
 	video: Option[Video], 

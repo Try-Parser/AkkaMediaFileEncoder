@@ -12,7 +12,7 @@ import ws.schild.jave.encode.{
 }
 
 import media.fdk.codec.{ Video, Audio }
-import media.fdk.json.{ MultiMedia, MediaEncoder, VideoCodec, AudioCodec, Formats }
+import media.fdk.json.{ PreferenceSettings, MediaEncoder, VideoCodec, AudioCodec, Formats }
 import media.state.media.Progress
 
 
@@ -24,10 +24,11 @@ object MediaConverter {
 	private val encoder: Encoder = new Encoder()
 	private val fileHandler = utils.file.FileHandler()
 
-	def startConvert(config: MultiMedia, nName: String): Future[Option[String]] = Future { 
+	def startConvert(config: PreferenceSettings, nName: String): Future[Option[String]] = Future { 
+		println(config.fileName)
 		convert(config, 
 			new MultimediaObject(
-				fileHandler.getFile(s"${config.info.fileName}")), nName)
+				fileHandler.getFile(s"${config.fileName}")), nName)
 	}
 
 	def getAvailableFormats(video: Boolean = true, audio: Boolean = true): MediaEncoder = 
@@ -37,10 +38,10 @@ object MediaConverter {
 			Formats(encoder.getSupportedEncodingFormats.toList, encoder.getSupportedDecodingFormats.toList),
 			video, audio)
 
-	private def convert(config: MultiMedia, source: MultimediaObject, nName: String): Option[String] = {
+	private def convert(config: PreferenceSettings, source: MultimediaObject, nName: String): Option[String] = {
 		val attrs: EncodingAttributes = new EncodingAttributes()
-		config.info.video.map(processVideo(_)).map(attrs.setVideoAttributes(_))
-		config.info.audio.map(processAudio(_)).map(attrs.setAudioAttributes(_))
+		config.video.map(processVideo(_)).map(attrs.setVideoAttributes(_))
+		config.audio.map(processAudio(_)).map(attrs.setAudioAttributes(_))
 		attrs.setOutputFormat(config.format.value)
 
 		Option(try {
@@ -50,9 +51,11 @@ object MediaConverter {
 				attrs,
 				Progress())
 
-			config.info.fileName
+			nName
 		} catch {
-			case _ : Throwable => Files
+			case a : Throwable => 
+				println(a)
+				Files
 				.deleteIfExists(
 					Paths.get(s"${fileHandler.basePath}/${fileHandler.convertFilePath}/$nName"))
 				null
