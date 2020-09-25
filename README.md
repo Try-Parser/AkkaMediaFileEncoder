@@ -110,15 +110,15 @@ $curl -i -H "Accept: application/json" -H "Content-Type: application/json" -X GE
 ```
 #### Result 
 ```
-{  
+{
     "journal": {
-		"contentType": "",
-		"file_id": "d3bf102f-4480-441b-9b90-54511e607c09",
-		"file_name": "595a81ae-bc56-469a-a7e7-9a925d0a251a-1601025045.mp4",
-		"file_path": "Desktop/file/converted",
-		"file_status": 4
-	},
-	"status":"complete"
+        "contentType": "",
+        "file_id": "d3bf102f-4480-441b-9b90-54511e607c09",
+        "file_name": "0cf9068e-0ec8-458c-a6c3-2a98df6a5cb4-1601024870.mp4",
+        "file_path": "Desktop/file/converted",
+        "file_status": 4
+    },
+    "status": "complete"
 }
 ```
 #### Play File TODO
