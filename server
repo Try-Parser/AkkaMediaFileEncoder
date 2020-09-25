@@ -85,11 +85,11 @@ repo() {
 	fi
 
 	echo "----------- Code --------------"
-	echo "700 - media-manage-state"
-	echo "070 - media-manager-app"
-	echo "007 - media-manager-service"
+	echo "700 - media-manage-state."
+	echo "070 - media-manager-app."
+	echo "007 - media-manager-service."
 	echo "000 - restart integrated compose."
-	echo ""
+	echo "999 - full restart integrated compose with data."
 
 	echo "Please select combination to run eq: "
 	echo "- 770 executing command clean compile test package state and app"
@@ -97,7 +97,7 @@ repo() {
 	read -p "Enter combination code: " code
 	echo ""
 
-	if [ "$code" -ne "000" ] 
+	if [ "$code" -ne "000" -a "$code" -ne "999" ] 
 	then 
 		read -p "Would you like to run the module after executing the commands [Y/n]?" run
 		echo ""
@@ -161,8 +161,22 @@ repo() {
 			execService $compileCmd
 		;;
 
-		0 | 00 | 000)
+		000)
 			execComposeDown
+			execComposeUp
+		;;
+
+		999)
+			execComposeDown
+			echo ""
+			echo "removing cassandra data from host..."
+			sudo rm -rf cassandra/
+			echo "cassandra data from host removed successfully..."
+			echo ""
+			echo "removing ddata from remember entities..."
+			sudo rm -rf media-manage-state/ddata-media-*
+			echo "ddata removed successfully..."
+			echo ""
 			execComposeUp
 		;;
 
