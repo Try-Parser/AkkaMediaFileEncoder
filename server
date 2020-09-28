@@ -2,6 +2,17 @@
 echo "Initialize project"
 echo ""
 
+if [ -z "$(ls .. | grep file)"]
+then
+	echo "File directory not found."
+	echo "Creating a new file directory."
+	mkdir ../file
+	mkdir ../file/uploaded
+	mkdir ../file/converted
+	echo "Media file directory created successfully."
+	echo ""
+fi
+
 if [ -z "$(ls -al | grep cassandra)" ]
 then
 	echo "no cassandra folder found."

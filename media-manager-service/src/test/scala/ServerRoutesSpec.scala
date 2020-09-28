@@ -27,6 +27,7 @@ class ServerRoutesSpec extends AnyFunSuite
   private val config = ConfigFactory.load()
   private val basePath: String = config.getString("file-directory.base-path")
   private val uploadedFilePath: String = config.getString("file-directory.upload.path")
+  private val convertFilePath: String = config.getString("file-directory.convert.path")
   private val routes = ServiceRoutes(system.toTyped)
   private val data = TestFiles.sampleData
   private val audio = File.createTempFile("akka-http-temp", ".mp3")
@@ -40,8 +41,12 @@ class ServerRoutesSpec extends AnyFunSuite
   // Happy paths
 
   private def doesPathExists(path: String): Boolean = {
-    val pathExists: Boolean = new java.io.File(path).exists()
-    if (pathExists) true else false
+    val filePath = new File(path)
+    val pathExists: Boolean = filePath.exists()
+    if (!pathExists) 
+      filePath.mkdir()
+
+    true
   }
 
   test("the /upload directive should upload a file into the server") {
@@ -49,6 +54,8 @@ class ServerRoutesSpec extends AnyFunSuite
     Post("/upload", testUploadFormData) ~> routes ~> check {
       val filePath = basePath + "/" + uploadedFilePath
       assert(doesPathExists(filePath), s"File Uploaded directory should exist: $uploadedFilePath")
+      val convertPath = basePath + "/" + convertFilePath
+      assert(doesPathExists(convertPath), "File Convert directory should exists $convertFilePath")
       val uploadedFile: File = new File(filePath)
       assert(uploadedFile.exists(), "File was not uploaded")
       assert(read(audio) == data, "Uploaded file does not have equal data with the source file")
