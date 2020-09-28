@@ -54,7 +54,7 @@ object MediaConverter {
 			nName
 		} catch {
 			case a : Throwable => 
-				println(a)
+				println(s"$a 00000000000000000000000000000000000000000000000000000000")
 				Files
 				.deleteIfExists(
 					Paths.get(s"${fileHandler.basePath}/${fileHandler.convertFilePath}/$nName"))
