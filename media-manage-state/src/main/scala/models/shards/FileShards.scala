@@ -7,8 +7,8 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef
 
 import akka.persistence.typed.scaladsl.{
-  Effect, 
-  ReplyEffect, 
+  Effect,
+  ReplyEffect,
 }
 
 import media.state.media.MediaConverter
@@ -23,13 +23,14 @@ import media.state.models.actors.FileActor.{
   ConvertedFile,
   UpdatedStatus,
   UpdateStatus,
+  PlayFile,
   CompressFile
 }
 
 import utils.actors.ShardActor
 import utils.traits.{ Command, Event }
  
-private[models] class FileShard extends ShardActor[Command, Event, State]("FileActor") { 
+private[models] class FileShard extends ShardActor[Command, Event, State]("FileActor") {
 
   def processFile(fileId: UUID, self: ActorRef[Command])(implicit sys: ActorSystem[_]): CommandHandler[ReplyEffect] = { 
     (state, cmd) => cmd match {
@@ -47,7 +48,7 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
         Effect.persist(FileAdded(fileId, journal)).thenReply(replyTo)((state: State) => state.getFileJournal(true))
       case GetFile(replyTo) =>
         Effect.reply[Response, Event, State](replyTo)(state.getFile)
-      case UpdateStatus(status) => 
+      case UpdateStatus(status) =>
         Effect.persist[Event, State](UpdatedStatus(status)).thenNoReply
       case ConvertFile(mm, replyTo) =>
         val newName = Config.handler.generateName(mm.fileName, mm.extension)
@@ -65,6 +66,9 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
         }(sys.executionContext)
 
         Effect.persist(ConvertedFile(convertedJournal)).thenReply(replyTo)((state: State) => state.getFileProgress)
+      case PlayFile(replyTo) =>
+        Effect.reply[Response, Event, State](replyTo)(state.playFile)
+
   }}
 
   def handleEvent: EventHandler = { (state, event) => event match {

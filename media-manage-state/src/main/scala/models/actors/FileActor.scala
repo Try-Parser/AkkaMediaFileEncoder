@@ -16,7 +16,7 @@ import akka.cluster.sharding.typed.scaladsl.{
 }
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{
-  EventSourcedBehavior, 
+  EventSourcedBehavior,
   RetentionCriteria,
 }
 
@@ -30,7 +30,7 @@ import media.state.models.shards.FileShard
 
 import utils.actors.Actor
 import utils.traits.{ CborSerializable, Command, Event, Response }
-import utils.file.ContentType
+import utils.file.{ ContentType, FileHandler }
 
 object FileActor extends Actor[FileShard]{
 
@@ -43,9 +43,10 @@ object FileActor extends Actor[FileShard]{
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
   final case class UpdateStatus(status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command
+  final case class PlayFile(replyTo: ActorRef[Response]) extends Command
   final case class CompressFile(
-    data: Array[Byte], 
-    fileName: String, 
+    data: Array[Byte],
+    fileName: String,
     replyTo: ActorRef[Response]) extends Command
 
   /*** STATE ***/
@@ -65,7 +66,7 @@ object FileActor extends Actor[FileShard]{
 
     def getAck = Ack
 
-    def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId, status) 
+    def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId, status)
     def getFileJournal(upload: Boolean): MediaDescription = {
       val mMmo = Config.getMultiMedia(file.fileName, upload)
       val info = mMmo.getInfo()
@@ -79,6 +80,13 @@ object FileActor extends Actor[FileShard]{
         file.status,
         file.fileId
       ))
+    }
+
+    def playFile: Response = {
+      Option(file.fileId) match {
+        case Some(_) => Play(s"${FileHandler().basePath}/${file.fullPath}/${file.fileName}", file.contentType)
+        case None    => FileNotFound
+      }
     }
   }
 
@@ -119,6 +127,7 @@ object FileActor extends Actor[FileShard]{
   }
    
   final case class Get(journal: FileJournal, status: String) extends Response
+  final case class Play(fileUri: String, contentType: String) extends Response
 
   /*** INI ***/
   val TypeKey: EntityTypeKey[Command] = EntityTypeKey[Command](actor.actorName)
