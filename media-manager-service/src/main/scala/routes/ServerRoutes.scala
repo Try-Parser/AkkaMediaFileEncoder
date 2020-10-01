@@ -1,7 +1,9 @@
 package media.service.routes
 
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
+import java.util.UUID
 
 import akka.util.Timeout
 import akka.actor.typed.ActorSystem
@@ -10,15 +12,15 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes // HttpResponse
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.stream.typed.scaladsl.ActorSink
 
 import media.service.handlers.FileActorHandler
 import media.service.routes.RejectionHandlers
 import media.fdk.json.PreferenceSettings
 import media.state.media.MediaConverter
-import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal }
+import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal, Config }
 
-import spray.json.{JsValue, JsNumber, JsObject, JsString }
-
+import spray.json.{ JsValue, JsNumber, JsObject, JsString }
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
@@ -38,17 +40,47 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		.getLong("media-manager-service.max-content-size")
 
 	//handler
-	val fileActorHandler: FileActorHandler = FileActorHandler(sharding, system)
+	val fileActorHandler: FileActorHandler = FileActorHandler(sharding)(timeout, system)
+	
+
+	import media.service.sinks.FileSink.{
+		messageAdapter => Message,
+		onInitMessage => Init,
+		onFailureMessage => Failure,
+		Protocol,
+		Ack,
+		Complete,
+		apply => FileSink
+	}
 
 	val uploadFile: Route = path("upload") {
 		post { 
 			withSizeLimit(maxSize) {
-				fileUpload("file") { case (meta, byteSource) => 
-					onComplete(fileActorHandler.uploadFile(meta, byteSource)) { 
-						case Success(multiMedia) => complete(PreferenceSettings(multiMedia).toJson)
-						case Failure(ex) => 
-							complete(StatusCodes.InternalServerError -> ex.toString) 
-					}
+					fileUpload("file") { case (meta, byteSource) => 
+
+						val name = s"${UUID.randomUUID}-${java.time.Instant.now.getEpochSecond}.${Config.handler.getExt(meta.fileName)}"
+						val regionId = UUID.randomUUID
+
+						val sink = ActorSink.actorRefWithBackpressure(
+							ref = system.systemActorOf[Protocol](FileSink(fileActorHandler, name, regionId), s"file-sink-${regionId}"),
+							Message,
+							Init,
+							ackMessage = Ack,
+							onCompleteMessage = Complete,
+							Failure
+						)
+
+						val power =	byteSource
+							.alsoTo(sink)
+							.run()(akka.stream.Materializer(system.classicSystem))
+
+						val extractPower = power.flatMap { _ =>
+							fileActorHandler
+								.uploadFile(name, meta.contentType.toString, regionId)
+								.map(PreferenceSettings(_))(ExecutionContext.global)
+						}(ExecutionContext.global)
+
+						onSuccess(extractPower)(pref => complete(pref.toJson))
 		}}}
 	}
 

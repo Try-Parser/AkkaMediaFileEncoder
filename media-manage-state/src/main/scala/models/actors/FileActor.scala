@@ -43,10 +43,10 @@ object FileActor extends Actor[FileShard]{
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
   final case class UpdateStatus(status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command
-  final case class PersistJournal(
-    fileId: UUID, 
-    journal: FileJournal, 
-    replyTo: ActorRef[MediaDescription]) extends Command
+  final case class CompressFile(
+    data: Array[Byte], 
+    fileName: String, 
+    replyTo: ActorRef[Response]) extends Command
 
   /*** STATE ***/
   final case class State(
@@ -62,6 +62,8 @@ object FileActor extends Actor[FileShard]{
       else
         FileNotFound
     }
+
+    def getAck = Ack
 
     def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId, status) 
     def getFileJournal(upload: Boolean): MediaDescription = {
@@ -89,9 +91,10 @@ object FileActor extends Actor[FileShard]{
   final case class UpdatedStatus(status: String) extends Event
 
   /*** PERSIST ***/
+  case object Ack extends Response
+
   final case class File(
     fileName: String,
-    fileData: Array[Byte],
     contentType: String,
     status: Int) extends Response 
 

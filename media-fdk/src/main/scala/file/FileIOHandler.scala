@@ -1,7 +1,7 @@
 package media.fdk.file
 
 import java.nio.file.Paths
-import java.io.File
+import java.io.{File, FileOutputStream}
 
 import scala.concurrent.Future
 
@@ -29,6 +29,12 @@ case class FileIOHandler(handler: FileHandler) {
 		fileName: String, 
 		source: Source[ByteString, _])(implicit mat: Materializer): Future[IOResult] =
 			source.runWith(FileIO.toPath(Paths.get(s"${handler.basePath}/${handler.uploadFilePath}/$fileName")))
+
+	def writeFile(fileName: String, data: Array[Byte]): Unit = {
+		val buffer = new FileOutputStream(new File(s"${handler.basePath}/${handler.uploadFilePath}/$fileName"), true)
+		buffer.write(data)
+		buffer.close()
+	}
 }
 
 object FileIOHandler {

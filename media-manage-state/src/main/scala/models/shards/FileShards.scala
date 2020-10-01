@@ -10,8 +10,6 @@ import akka.persistence.typed.scaladsl.{
   Effect, 
   ReplyEffect, 
 }
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
 
 import media.state.media.MediaConverter
 import media.state.models.actors.FileActor.{
@@ -25,7 +23,7 @@ import media.state.models.actors.FileActor.{
   ConvertedFile,
   UpdatedStatus,
   UpdateStatus,
-  PersistJournal
+  CompressFile
 }
 
 import utils.actors.ShardActor
@@ -35,20 +33,17 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
 
   def processFile(fileId: UUID, self: ActorRef[Command])(implicit sys: ActorSystem[_]): CommandHandler[ReplyEffect] = { 
     (state, cmd) => cmd match {
+      case CompressFile(data: Array[Byte], fileName: String, replyTo) =>
+        Config.writeFile(fileName, data)
+        Effect.reply[Response, Event, State](replyTo)(state.getAck)
       case AddFile(file, replyTo) =>
-        val newName = Config.handler.generateName(file.fileName)
+        val journal = FileJournal(
+          file.fileName,
+          Config.handler.uploadFilePath,
+          file.contentType,
+          file.status,
+          fileId)
 
-        Config.writeFile(newName, Source.single(ByteString(file.fileData)))(
-          akka.stream.Materializer(sys.classicSystem)).map { _ => 
-            self ! PersistJournal(fileId, FileJournal(
-              newName,
-              Config.handler.uploadFilePath,
-              file.contentType,
-              file.status,
-              fileId), replyTo)
-          }(sys.executionContext)
-        Effect.none.thenNoReply
-      case PersistJournal(id, journal, replyTo) => 
         Effect.persist(FileAdded(fileId, journal)).thenReply(replyTo)((state: State) => state.getFileJournal(true))
       case GetFile(replyTo) =>
         Effect.reply[Response, Event, State](replyTo)(state.getFile)
@@ -74,6 +69,12 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
 
   def handleEvent: EventHandler = { (state, event) => event match {
       case FileAdded(_, file) => 
+        val runtime = java.lang.Runtime.getRuntime()
+        println("0000000000000000000000000000000000000000000000000000000000000000000")
+        println(s"Free Memory : ${runtime.freeMemory()}")
+        println(s"Total Memory : ${runtime.totalMemory()}")
+        println(s"Processor : ${runtime.availableProcessors()}")
+        println("0000000000000000000000000000000000000000000000000000000000000000000")
         state.insert(file)
       case ConvertedFile(file) => 
         state

@@ -5,9 +5,7 @@ import utils.traits.Response
 import java.util.UUID
 import scala.concurrent.Future
 
-import akka.util.{ ByteString, Timeout }
-import akka.stream.scaladsl.Source
-import akka.http.scaladsl.server.directives.FileInfo
+import akka.util.Timeout
 import akka.cluster.sharding.typed.scaladsl.{ Entity, ClusterSharding }
 import akka.actor.typed.ActorSystem
 
@@ -21,7 +19,8 @@ import media.state.models.actors.FileActor.{
 	FileProgress,
 	GetFile,
 	Get,
-	FileNotFound
+	FileNotFound,
+	CompressFile
 }
 import media.state.events.EventProcessorSettings
 import media.fdk.json.{MultiMedia, PreferenceSettings}
@@ -40,17 +39,26 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	
 	shards.init(Entity(TypeKey)(CreateBehavior))
 
-	def uploadFile(meta: FileInfo, byteSource: Source[ByteString, _]): Future[MultiMedia] =  {
-		byteSource.runFold(ByteString.empty)(_ ++ _).flatMap { byteS => 
-			shards.entityRefFor(TypeKey, UUID.randomUUID.toString)
-				.ask(AddFile(File(
-					meta.fileName, 
-					byteS.toArray, 
-					meta.contentType.toString,
-					0
-				), _)).map(extractMedia)(sys.executionContext)
-		}(sys.executionContext)
-	}
+	// def uploadFile(meta: FileInfo, byteSource: Source[ByteString, _]): Future[MultiMedia] = 
+	// 	byteSource.runFold(ByteString.empty)(_ ++ _).flatMap { byteS => 
+	// 		println(s"Message upload : ${byteS.size}")
+	// 		shards.entityRefFor(TypeKey, UUID.randomUUID.toString)
+	// 			.ask(AddFile(File(
+	// 				meta.fileName, 
+	// 				byteS.toArray, 
+	// 				meta.contentType.toString,
+	// 				0
+	// 			), _)).map(extractMedia)(sys.executionContext)
+	// 	}(sys.executionContext)
+
+	def uploadFile(newName: String, contentType: String, regionId: UUID): Future[MultiMedia] = 
+		shards.entityRefFor(TypeKey, regionId.toString)
+			.ask(AddFile(File(newName, contentType, 0), _))
+			.map(extractMedia)(sys.executionContext)
+
+	def transferFile(name: String, data: Array[Byte], regionId: UUID): Future[Response] =
+		shards.entityRefFor(TypeKey, regionId.toString)
+			.ask(CompressFile(data, name, _))
 
 	def getFile(fileId: UUID): Future[Response] = {
 		/*** test to get the region state 
@@ -103,6 +111,6 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 }
 
 private[service] object FileActorHandler {
-	def apply(shards: ClusterSharding, sys: ActorSystem[_])(
-		implicit t: Timeout): FileActorHandler = new FileActorHandler(shards, sys)
+	def apply(shards: ClusterSharding)(implicit t: Timeout, sys: ActorSystem[_]): FileActorHandler = 
+		new FileActorHandler(shards, sys)
 }
