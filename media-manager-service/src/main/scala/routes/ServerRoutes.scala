@@ -2,7 +2,10 @@ package media.service.routes
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{
+	Failure,
+	Success
+}
 import java.util.UUID
 
 import akka.util.Timeout
@@ -10,17 +13,26 @@ import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.StatusCodes // HttpResponse
+import akka.http.scaladsl.model.StatusCodes
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.stream.typed.scaladsl.ActorSink
-
 import media.service.handlers.FileActorHandler
-import media.service.routes.RejectionHandlers
 import media.fdk.json.PreferenceSettings
 import media.state.media.MediaConverter
-import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal, Config }
-
-import spray.json.{ JsValue, JsNumber, JsObject, JsString }
+import media.state.models.actors.FileActor.{
+	Config,
+	FileJournal,
+	FileNotFound,
+	Get
+}
+import media.state.models.actors.FileActorListModel
+import spray.json.{
+	JsArray,
+	JsNumber,
+	JsObject,
+	JsString,
+	JsValue
+}
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
@@ -145,6 +157,39 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			}
 		}
 	}
+
+	val queryFiles: Route = pathPrefix("getFiles") {
+		concat(
+			pathEnd {
+				concat(
+					get {
+						onSuccess(fileActorHandler.getFiles(None)) {
+							case FileActorListModel.Get(journal) => {
+								complete(JsObject(
+									"files" -> JsonFormats.List.write(journal)
+								))
+							}
+						}
+					})
+			},
+			path(Segment) { key =>
+				concat(
+					get {
+						onSuccess(fileActorHandler.getFiles(Some(key))) {
+							case FileActorListModel.Get(journal) => {
+								complete(JsObject(
+									"files" -> JsonFormats.List.write(journal)
+								))
+							}
+							case _ => complete(
+								JsObject(
+									"id" -> JsString(key),
+									"reason" -> JsString("file not found.")
+								))
+						}
+					})
+			})
+	}
 }
 
 object JsonFormats extends  {
@@ -155,14 +200,28 @@ object JsonFormats extends  {
 			"contentType" -> JsString(file.contentType),
 			"file_status" -> JsNumber(file.status),
 			"file_id" -> JsString(file.fileId.toString)
+		)}
+
+	implicit object List {
+		def write(file: List[(FileJournal, String)]): JsArray = JsArray(
+			file.map(res =>
+				JsObject(
+					"file_id" -> JsString(res._1.fileId.toString),
+					"file_name" -> JsString(res._1.fileName),
+					"file_type" -> JsString(res._1.fullPath.split("/").toList.last),
+					"contentType" -> JsString(res._1.contentType),
+					"file_status" -> JsString(res._2)
+				)
+			).toVector
 		)
-}}
+	}
+}
 
 object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
 		handleRejections(rejectionHandlers) {
-			route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile
+			route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile ~ route.queryFiles
 		}
 	}
 }

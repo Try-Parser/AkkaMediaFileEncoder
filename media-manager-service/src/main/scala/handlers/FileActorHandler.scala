@@ -1,31 +1,55 @@
 package media.service.handlers
 
 import utils.concurrent.SysLog
-import utils.traits.Response
+import utils.traits.{
+	Command,
+	Response
+}
 import java.util.UUID
+
+import akka.actor.typed.scaladsl.AskPattern.{
+	Askable,
+	schedulerFromActorSystem}
+import akka.actor.typed.scaladsl.Behaviors
+
 import scala.concurrent.Future
-
 import akka.util.Timeout
-import akka.cluster.sharding.typed.scaladsl.{ Entity, ClusterSharding }
-import akka.actor.typed.ActorSystem
-
-import media.state.models.actors.FileActor.{ 
-	File, 
-	AddFile, 
-	MediaDescription, 
+import akka.cluster.sharding.typed.scaladsl.{
+	ClusterSharding,
+	Entity
+}
+import akka.actor.typed.{
+	ActorSystem,
+	SupervisorStrategy
+}
+import akka.cluster.typed.{
+	ClusterSingleton,
+	SingletonActor
+}
+import media.state.models.actors.FileActor.{
+	AddFile,
+	CompressFile,
 	ConvertFile,
-	TypeKey,
-	createBehavior => CreateBehavior,
-	FileProgress,
-	GetFile,
-	Get,
+	File,
 	FileNotFound,
-	CompressFile
+	FileProgress,
+	Get,
+	GetFile,
+	MediaDescription,
+	TypeKey,
+	createBehavior => CreateBehavior
 }
 import media.state.events.EventProcessorSettings
-import media.fdk.json.{MultiMedia, PreferenceSettings}
+import media.fdk.json.{
+	MultiMedia,
+	PreferenceSettings
+}
+import media.state.models.actors.FileActorListModel
+import spray.json.{
+	JsObject,
+	JsString
+}
 
-import spray.json.{ JsObject, JsString }
 
 private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSystem[_])
 	(implicit timeout: Timeout) extends SysLog(sys.log) {
@@ -81,6 +105,15 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 		
 		shards.entityRefFor(TypeKey, fileId.toString)
 			.ask(GetFile(_))
+	}
+
+	val singletonActor =
+		ClusterSingleton(sys)
+			.init(SingletonActor(Behaviors.supervise(FileActorListModel())
+				.onFailure[Exception](SupervisorStrategy.restart), "FileListActor"))
+
+	def getFiles(key: Option[String]): Future[Command] = {
+		singletonActor.ask(FileActorListModel.GetFiles(key, _))
 	}
 
 	def startConvert(mm: PreferenceSettings): Future[JsObject] = {
