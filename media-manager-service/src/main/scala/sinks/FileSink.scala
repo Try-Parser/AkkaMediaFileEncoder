@@ -33,9 +33,7 @@ object FileSink extends FileSink {
 			rar ! Ack
 			Behaviors.same
 		case Message(rar, msg) =>
-			val s = msg.toArray
-			println(s"Message size: ${s.size}")
-
+			println(s"Message size: ${msg.size}")
 			handler.transferFile(name, msg.toArray, regionId).map { _ =>
 				rar ! Ack
 			}(ExecutionContext.global)

@@ -1,26 +1,44 @@
 package media.service.routes
 
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
 import java.util.UUID
 
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
+
+import akka.NotUsed
 import akka.util.Timeout
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.{ActorSystem, SpawnProtocol, Props, ActorRef}
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes // HttpResponse
-import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.http.scaladsl.model.ws.{ TextMessage, Message }
 import akka.stream.typed.scaladsl.ActorSink
+import akka.stream.scaladsl.{ Flow, Sink, Source }
+import akka.stream.{OverflowStrategy, Materializer}
+import akka.stream.typed.scaladsl.ActorSource
 
 import media.service.handlers.FileActorHandler
 import media.service.routes.RejectionHandlers
 import media.fdk.json.PreferenceSettings
 import media.state.media.MediaConverter
 import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal, Config }
+import media.service.sinks.FileSink.{
+	messageAdapter => OnMessage,
+	onInitMessage => OnInit,
+	onFailureMessage => OnFailure,
+	Protocol,
+	Ack,
+	Complete,
+	apply => FileSink
+}
+import media.service.sinks.{ Publisher, Consumer }
 
-import spray.json.{ JsValue, JsNumber, JsObject, JsString }
+// import spray.json.{ JsValue, JsNumber, JsObject, JsString }
+import spray.json._
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
@@ -41,18 +59,51 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 	//handler
 	val fileActorHandler: FileActorHandler = FileActorHandler(sharding)(timeout, system)
+
+	val pub = system.systemActorOf[Publisher.Protocol](Publisher(), "publisher")
+	val sc = system.systemActorOf[SpawnProtocol.Command](SpawnProtocol(), "spawn-control")
+
+	implicit val scheduler = system.scheduler
+
+	def futureConsumer: Future[ActorRef[Consumer.Event]] =
+		sc.ask(SpawnProtocol.Spawn(Consumer(pub), s"consumer-${UUID.randomUUID}-${java.time.Instant.now.getEpochSecond}", Props.empty, _))
 	
+	def pubSub: Flow[Message, Message, Future[NotUsed]] =
+		Flow.futureFlow(futureConsumer.map { consumerRef => 
+			val inComming: Sink[Message, NotUsed] =
+				Flow[Message].map {
+					case TextMessage.Strict(msg) => 
+						println("Strict message pass only")
+						Consumer.Incomming(msg)
+				}.to(
+					ActorSink.actorRef[Consumer.Event](
+						consumerRef,
+						Consumer.Disconnected,
+						_ => Consumer.Disconnected
+					)
+				)
 
-	import media.service.sinks.FileSink.{
-		messageAdapter => Message,
-		onInitMessage => Init,
-		onFailureMessage => Failure,
-		Protocol,
-		Ack,
-		Complete,
-		apply => FileSink
+			val outGoing: Source[Message, NotUsed] = 
+				ActorSource.actorRef[Consumer.Event](
+					PartialFunction.empty,
+					PartialFunction.empty,
+					10,
+					OverflowStrategy.fail
+				).mapMaterializedValue { out => 
+					println("Handshake established.")
+					consumerRef ! Consumer.Connected(UUID.randomUUID, out)
+					NotUsed
+				}.map { 
+					case Consumer.Outgoing(msg) => TextMessage(msg) 
+				}
+
+				Flow.fromSinkAndSourceCoupled(inComming, outGoing)
+		}(ExecutionContext.global))
+
+	val socket: Route = path("media.v1") {
+		handleWebSocketMessages(pubSub)
 	}
-
+	
 	val uploadFile: Route = path("upload") {
 		post { 
 			withSizeLimit(maxSize) {
@@ -63,16 +114,16 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 
 						val sink = ActorSink.actorRefWithBackpressure(
 							ref = system.systemActorOf[Protocol](FileSink(fileActorHandler, name, regionId), s"file-sink-${regionId}"),
-							Message,
-							Init,
+							OnMessage,
+							OnInit,
 							ackMessage = Ack,
 							onCompleteMessage = Complete,
-							Failure
+							OnFailure
 						)
 
 						val power =	byteSource
 							.alsoTo(sink)
-							.run()(akka.stream.Materializer(system.classicSystem))
+							.run()(Materializer(system.classicSystem))
 
 						val extractPower = power.flatMap { _ =>
 							fileActorHandler
@@ -162,7 +213,7 @@ object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
 		handleRejections(rejectionHandlers) {
-			route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile
+			route.socket ~ route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile
 		}
 	}
 }

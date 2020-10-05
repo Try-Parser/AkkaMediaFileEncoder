@@ -4,6 +4,8 @@ import java.nio.file.{ Files, Paths }
 
 import scala.concurrent.Future
 
+import akka.actor.typed.ActorSystem
+
 import ws.schild.jave.{ Encoder, MultimediaObject }
 import ws.schild.jave.encode.{ 
 	AudioAttributes, 
@@ -15,7 +17,6 @@ import media.fdk.codec.{ Video, Audio }
 import media.fdk.json.{ PreferenceSettings, MediaEncoder, VideoCodec, AudioCodec, Formats }
 import media.state.media.Progress
 
-
 import utils.implicits.Primitive._
 
 object MediaConverter {
@@ -24,7 +25,10 @@ object MediaConverter {
 	private val encoder: Encoder = new Encoder()
 	private val fileHandler = utils.file.FileHandler()
 
-	def startConvert(config: PreferenceSettings, nName: String): Future[Option[String]] = Future { 
+	def startConvert(
+		config: PreferenceSettings,
+		nName: String)(implicit system: ActorSystem[_]
+	): Future[Option[String]] = Future { 
 		println(config.fileName)
 		convert(config, 
 			new MultimediaObject(
@@ -38,7 +42,11 @@ object MediaConverter {
 			Formats(encoder.getSupportedEncodingFormats.toList, encoder.getSupportedDecodingFormats.toList),
 			video, audio)
 
-	private def convert(config: PreferenceSettings, source: MultimediaObject, nName: String): Option[String] = {
+	private def convert(
+		config: PreferenceSettings, 
+		source: MultimediaObject, 
+		nName: String
+	)(implicit system: ActorSystem[_]): Option[String] = {
 		val attrs: EncodingAttributes = new EncodingAttributes()
 		config.video.map(processVideo(_)).map(attrs.setVideoAttributes(_))
 		config.audio.map(processAudio(_)).map(attrs.setAudioAttributes(_))
@@ -49,7 +57,7 @@ object MediaConverter {
 				source, 
 				fileHandler.getFile(nName, false), 
 				attrs,
-				Progress())
+				Progress(progressId = config.progress))
 
 			nName
 		} catch {

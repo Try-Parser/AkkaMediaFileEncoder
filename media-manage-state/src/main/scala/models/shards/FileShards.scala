@@ -70,11 +70,11 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
   def handleEvent: EventHandler = { (state, event) => event match {
       case FileAdded(_, file) => 
         val runtime = java.lang.Runtime.getRuntime()
-        println("0000000000000000000000000000000000000000000000000000000000000000000")
-        println(s"Free Memory : ${runtime.freeMemory()}")
-        println(s"Total Memory : ${runtime.totalMemory()}")
-        println(s"Processor : ${runtime.availableProcessors()}")
-        println("0000000000000000000000000000000000000000000000000000000000000000000")
+        println(s"""
+          | Free Memory : ${runtime.freeMemory()} 
+          | Total Memory : ${runtime.totalMemory()} 
+          | Processor : ${runtime.availableProcessors()} 
+        """)
         state.insert(file)
       case ConvertedFile(file) => 
         state
