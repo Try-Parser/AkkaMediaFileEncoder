@@ -2,13 +2,20 @@ package media.service.routes
 
 import java.util.UUID
 
+import media.state.models.actors.FileActorListModel
+
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 import akka.NotUsed
 import akka.util.Timeout
-import akka.actor.typed.{ActorSystem, SpawnProtocol, Props, ActorRef}
+import akka.actor.typed.{
+	ActorSystem,
+	SpawnProtocol,
+	Props,
+	ActorRef
+}
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.http.scaladsl.server.Directives._
@@ -22,10 +29,17 @@ import akka.stream.{OverflowStrategy, Materializer}
 import akka.stream.typed.scaladsl.ActorSource
 
 import media.service.handlers.FileActorHandler
-import media.service.routes.RejectionHandlers
+
 import media.fdk.json.PreferenceSettings
+
 import media.state.media.MediaConverter
-import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal, Config }
+import media.state.models.actors.FileActor.{
+	Get,
+	FileNotFound,
+	FileJournal,
+	Config
+}
+
 import media.service.sinks.FileSink.{
 	messageAdapter => OnMessage,
 	onInitMessage => OnInit,
@@ -37,8 +51,13 @@ import media.service.sinks.FileSink.{
 }
 import media.service.sinks.{ Publisher, Consumer }
 
-// import spray.json.{ JsValue, JsNumber, JsObject, JsString }
 import spray.json._
+import spray.json.{
+	JsValue,
+	JsNumber,
+	JsObject,
+	JsString
+}
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
@@ -66,7 +85,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	implicit val scheduler = system.scheduler
 
 	def futureConsumer: Future[ActorRef[Consumer.Event]] =
-		sc.ask(SpawnProtocol.Spawn(Consumer(pub), s"consumer-${UUID.randomUUID}-${java.time.Instant.now.getEpochSecond}", Props.empty, _))
+		sc.ask(
+			SpawnProtocol.Spawn(Consumer(pub),
+				s"consumer-${UUID.randomUUID}-${java.time.Instant.now.getEpochSecond}",
+				Props.empty, _))
 	
 	def pubSub: Flow[Message, Message, Future[NotUsed]] =
 		Flow.futureFlow(futureConsumer.map { consumerRef => 
@@ -110,11 +132,15 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			withSizeLimit(maxSize) {
 					fileUpload("file") { case (meta, byteSource) => 
 
-						val name = s"${UUID.randomUUID}-${java.time.Instant.now.getEpochSecond}.${Config.handler.getExt(meta.fileName)}"
+						val name =
+							s"${UUID.randomUUID}-${java.time.Instant.now.getEpochSecond}" +
+								s".${Config.handler.getExt(meta.fileName)}"
 						val regionId = UUID.randomUUID
 
 						val sink = ActorSink.actorRefWithBackpressure(
-							ref = system.systemActorOf[Protocol](FileSink(fileActorHandler, name, regionId), s"file-sink-${regionId}"),
+							ref = system.systemActorOf[Protocol](
+								FileSink(fileActorHandler, name, regionId),
+								s"file-sink-${regionId}"),
 							OnMessage,
 							OnInit,
 							ackMessage = Ack,
@@ -197,6 +223,39 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 			}
 		}
 	}
+
+	val queryFiles: Route = pathPrefix("getFiles") {
+		concat(
+			pathEnd {
+				concat(
+					get {
+						onSuccess(fileActorHandler.getFiles(None)) {
+							case FileActorListModel.Get(journal) => {
+								complete(JsObject(
+									"files" -> JsonFormats.List.write(journal)
+								))
+							}
+						}
+					})
+			},
+			path(Segment) { key =>
+				concat(
+					get {
+						onSuccess(fileActorHandler.getFiles(Some(key))) {
+							case FileActorListModel.Get(journal) => {
+								complete(JsObject(
+									"files" -> JsonFormats.List.write(journal)
+								))
+							}
+							case _ => complete(
+								JsObject(
+									"id" -> JsString(key),
+									"reason" -> JsString("file not found.")
+								))
+						}
+					})
+			})
+	}
 }
 
 object JsonFormats extends  {
@@ -207,14 +266,28 @@ object JsonFormats extends  {
 			"contentType" -> JsString(file.contentType),
 			"file_status" -> JsNumber(file.status),
 			"file_id" -> JsString(file.fileId.toString)
+		)}
+
+	implicit object List {
+		def write(file: List[(FileJournal, String)]): JsArray = JsArray(
+			file.map(res =>
+				JsObject(
+					"file_id" -> JsString(res._1.fileId.toString),
+					"file_name" -> JsString(res._1.fileName),
+					"file_type" -> JsString(res._1.fullPath.split("/").toList.last),
+					"contentType" -> JsString(res._1.contentType),
+					"file_status" -> JsString(res._2)
+				)
+			).toVector
 		)
-}}
+	}
+}
 
 object ServiceRoutes extends RejectionHandlers {
 	def apply(system: ActorSystem[_]): Route = {
 		val route: ServiceRoutes = new ServiceRoutes(system)
 		handleRejections(rejectionHandlers) {
-			route.socket ~ route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile
+			route.socket ~ route.uploadFile ~ route.convertFile ~ route.convertStatus ~ route.playFile ~ route.mediaCodec ~ route.getFile ~ route.queryFiles
 		}
 	}
 }
