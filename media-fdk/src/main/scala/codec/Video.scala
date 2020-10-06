@@ -20,12 +20,12 @@ final case class Video(
 ) extends utils.traits.CborSerializable
 
 object Video {
-	def apply(info: VideoInfo): Option[Video] = Option(if(info != null) {
+	def apply(info: VideoInfo): Option[Video] = Option(info).map { v => 
 		Video(
-			BitRate(info.getBitRate()),
-			FrameRate(info.getFrameRate()),
-			CodecName(info.getDecoder()),
-			info.getSize(),
+			BitRate(v.getBitRate()),
+			FrameRate(v.getFrameRate()),
+			CodecName(v.getDecoder()),
+			v.getSize(),
 			Tag(""))
-	} else null)
+	}
 }

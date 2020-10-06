@@ -1,56 +1,73 @@
 package media.service.handlers
 
 import utils.concurrent.SysLog
-import utils.traits.Response
+import utils.traits.{ Command, Response }
+
 import java.util.UUID
-import scala.concurrent.Future
 
-import akka.util.{ ByteString, Timeout }
-import akka.stream.scaladsl.Source
-import akka.http.scaladsl.server.directives.FileInfo
-import akka.cluster.sharding.typed.scaladsl.{ Entity, ClusterSharding }
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.AskPattern.{ Askable, schedulerFromActorSystem }
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ ActorSystem, SupervisorStrategy }
 
-import media.state.models.actors.FileActor.{ 
-	File, 
-	AddFile, 
-	MediaDescription, 
+
+import akka.cluster.sharding.typed.scaladsl.{ ClusterSharding, Entity }
+import akka.cluster.typed.{ ClusterSingleton, SingletonActor }
+
+import akka.util.Timeout
+
+import media.state.models.actors.FileActor.{
+	AddFile,
+	CompressFile,
 	ConvertFile,
-	TypeKey,
-	createBehavior => CreateBehavior,
+	File,
+	FileNotFound,
 	FileProgress,
-	GetFile,
 	Get,
-	FileNotFound
+	GetFile,
+	MediaDescription,
+	TypeKey,
+	createBehavior => CreateBehavior
 }
 import media.state.events.EventProcessorSettings
-import media.fdk.json.{MultiMedia, PreferenceSettings}
+import media.fdk.json.{
+	MultiMedia,
+	PreferenceSettings
+}
+import media.state.models.actors.FileActorListModel
+
+import scala.concurrent.Future
 
 import spray.json.{ JsObject, JsString }
+
 
 private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSystem[_])
 	(implicit timeout: Timeout) extends SysLog(sys.log) {
 
 	implicit private val sett = EventProcessorSettings(sys)
 	implicit private val system = sys
-
-	val regionId = com.typesafe.config.ConfigFactory
-		.load()
-		.getString("media-manager-service.region.id")
 	
 	shards.init(Entity(TypeKey)(CreateBehavior))
 
-	def uploadFile(meta: FileInfo, byteSource: Source[ByteString, _]): Future[MultiMedia] =  {
-		byteSource.runFold(ByteString.empty)(_ ++ _).flatMap { byteS => 
-			shards.entityRefFor(TypeKey, UUID.randomUUID.toString)
-				.ask(AddFile(File(
-					meta.fileName, 
-					byteS.toArray, 
-					meta.contentType.toString,
-					0
-				), _)).map(extractMedia)(sys.executionContext)
-		}(sys.executionContext)
-	}
+	// def uploadFile(meta: FileInfo, byteSource: Source[ByteString, _]): Future[MultiMedia] = 
+	// 	byteSource.runFold(ByteString.empty)(_ ++ _).flatMap { byteS => 
+	// 		println(s"Message upload : ${byteS.size}")
+	// 		shards.entityRefFor(TypeKey, UUID.randomUUID.toString)
+	// 			.ask(AddFile(File(
+	// 				meta.fileName, 
+	// 				byteS.toArray, 
+	// 				meta.contentType.toString,
+	// 				0
+	// 			), _)).map(extractMedia)(sys.executionContext)
+	// 	}(sys.executionContext)
+
+	def uploadFile(newName: String, contentType: String, fileId: UUID): Future[MultiMedia] =
+		shards.entityRefFor(TypeKey, fileId.toString)
+			.ask(AddFile(File(newName, contentType, 0), _))
+			.map(extractMedia)(sys.executionContext)
+
+	def transferFile(name: String, data: Array[Byte], fileId: UUID): Future[Response] =
+		shards.entityRefFor(TypeKey, fileId.toString)
+			.ask(CompressFile(data, name, _))
 
 	def getFile(fileId: UUID): Future[Response] = {
 		/*** test to get the region state 
@@ -73,6 +90,15 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 		
 		shards.entityRefFor(TypeKey, fileId.toString)
 			.ask(GetFile(_))
+	}
+
+	val singletonActor =
+		ClusterSingleton(sys)
+			.init(SingletonActor(Behaviors.supervise(FileActorListModel())
+				.onFailure[Exception](SupervisorStrategy.restart), "FileListActor"))
+
+	def getFiles(key: Option[String]): Future[Command] = {
+		singletonActor.ask(FileActorListModel.GetFiles(key, _))
 	}
 
 	def startConvert(mm: PreferenceSettings): Future[JsObject] = {
@@ -103,6 +129,6 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 }
 
 private[service] object FileActorHandler {
-	def apply(shards: ClusterSharding, sys: ActorSystem[_])(
-		implicit t: Timeout): FileActorHandler = new FileActorHandler(shards, sys)
+	def apply(shards: ClusterSharding)(implicit t: Timeout, sys: ActorSystem[_]): FileActorHandler = 
+		new FileActorHandler(shards, sys)
 }

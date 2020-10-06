@@ -2,7 +2,7 @@
 echo "Initialize project"
 echo ""
 
-if [ -z "$(ls .. | grep file)"]
+if [ -z "$(ls .. | grep file)" ]
 then
 	echo "File directory not found."
 	echo "Creating a new file directory."

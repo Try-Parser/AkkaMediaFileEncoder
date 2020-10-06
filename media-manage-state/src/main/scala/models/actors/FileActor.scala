@@ -1,35 +1,41 @@
 package media.state.models.actors
 
 import java.util.UUID
-import scala.concurrent.duration._
 import com.typesafe.config.ConfigFactory
-
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{
   ActorRef,
   ActorSystem,
   Behavior,
   SupervisorStrategy
 }
-import akka.cluster.sharding.typed.scaladsl.{
-  EntityContext,
-  EntityTypeKey
-}
+
+import akka.cluster.sharding.typed.scaladsl.{ EntityContext, EntityTypeKey }
+import akka.cluster.typed.{ ClusterSingleton, SingletonActor }
+
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{
-  EventSourcedBehavior, 
-  RetentionCriteria,
+  EventSourcedBehavior,
+  RetentionCriteria
 }
-
 import media.state.events.EventProcessorSettings
+
 import media.fdk.codec.{ Video, Audio }
 import media.fdk.codec.Codec.{ Duration, Format }
-import media.fdk.json.PreferenceSettings
-import media.fdk.json.MediaInfo
+import media.fdk.json.{ PreferenceSettings, MediaInfo }
 import media.fdk.file.FileIOHandler
+
 import media.state.models.shards.FileShard
 
+import scala.concurrent.duration._
+
 import utils.actors.Actor
-import utils.traits.{ CborSerializable, Command, Event, Response }
+import utils.traits.{
+  CborSerializable,
+  Command,
+  Event,
+  Response
+}
 import utils.file.ContentType
 
 object FileActor extends Actor[FileShard]{
@@ -41,12 +47,12 @@ object FileActor extends Actor[FileShard]{
   final case class RemoveFile(fileId: UUID) extends Command
   final case class ConvertFile(info: PreferenceSettings, reply: ActorRef[FileProgress]) extends Command
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
-  final case class UpdateStatus(status: String) extends Command
+  final case class UpdateStatus(file: FileJournal, status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command
-  final case class PersistJournal(
-    fileId: UUID, 
-    journal: FileJournal, 
-    replyTo: ActorRef[MediaDescription]) extends Command
+  final case class CompressFile(
+    data: Array[Byte], 
+    fileName: String, 
+    replyTo: ActorRef[Response]) extends Command
 
   /*** STATE ***/
   final case class State(
@@ -62,6 +68,8 @@ object FileActor extends Actor[FileShard]{
       else
         FileNotFound
     }
+
+    def getAck = Ack
 
     def getFileProgress: FileProgress = FileProgress(file.fileName, file.fileId, status) 
     def getFileJournal(upload: Boolean): MediaDescription = {
@@ -86,12 +94,13 @@ object FileActor extends Actor[FileShard]{
   final case class FileAdded(fileId: UUID, file: FileJournal) extends Event
   final case class FileRemoved(fileId: UUID) extends Event
   final case class ConvertedFile(journal: FileJournal) extends Event
-  final case class UpdatedStatus(status: String) extends Event
+  final case class UpdatedStatus(file: FileJournal, status: String) extends Event
 
   /*** PERSIST ***/
+  case object Ack extends Response
+
   final case class File(
     fileName: String,
-    fileData: Array[Byte],
     contentType: String,
     status: Int) extends Response 
 
@@ -135,12 +144,16 @@ object FileActor extends Actor[FileShard]{
   }
 
   def apply(fileId: UUID, eventTags: Set[String])(implicit sys: ActorSystem[_]): Behavior[Command] = actor.setupSource { self =>
+    val singletonActor =
+      ClusterSingleton(sys)
+        .init(SingletonActor(Behaviors.supervise(FileActorListModel())
+          .onFailure[Exception](SupervisorStrategy.restart), "FileListActor"))
     EventSourcedBehavior
       .withEnforcedReplies[Command, Event, State](
         PersistenceId(TypeKey.name, fileId.toString),
         State.empty,
-        actor.processFile(fileId, self),
-        actor.handleEvent)
+        actor.processFile(fileId, self, singletonActor),
+        actor.handleEvent(singletonActor))
       .withTagger(_ => eventTags)
       .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))
       .onPersistFailure(SupervisorStrategy.restartWithBackoff(200.millis, 5.seconds, 0.1))

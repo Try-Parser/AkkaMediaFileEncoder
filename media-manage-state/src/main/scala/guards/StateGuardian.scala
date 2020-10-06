@@ -6,7 +6,6 @@ import akka.actor.typed.{
   Behavior
 }
 import akka.cluster.sharding.typed.scaladsl.ShardedDaemonProcess
-
 import akka.cluster.sharding.typed.{
   ClusterShardingSettings,
   ShardedDaemonProcessSettings
@@ -24,7 +23,10 @@ import akka.projection.{
 }
 import media.state.events.EventProcessorSettings
 import media.state.handlers.StateProjectionHandler
-import media.state.models.actors.FileActor
+import media.state.models.actors.{
+  FileActor,
+  FileActorListModel
+}
 import utils.traits.Event
 
 object StateGuardian {
@@ -33,6 +35,7 @@ object StateGuardian {
     val settings = EventProcessorSettings(system)  
 
     FileActor.init(settings)(system)
+    FileActorListModel.init(system)
 
     if (Cluster(system).selfMember.hasRole("read-model")) {
       val shardingSettings = ClusterShardingSettings(system)
@@ -47,7 +50,6 @@ object StateGuardian {
         shardedDaemonProcessSettings,
         Some(ProjectionBehavior.Stop))
     }
-
     Behaviors.empty
   }
 }

@@ -22,12 +22,12 @@ final case class Audio(
 
 
 object Audio {
-	def apply(info: AudioInfo): Option[Audio] = Option(if(info != null) {
+	def apply(info: AudioInfo): Option[Audio] = Option(info).map {  v => 
 		Audio(
 			BitRate(info.getBitRate()), 
 			Channels(info.getChannels()),
 			CodecName(info.getDecoder()),
 			SamplingRate(info.getSamplingRate()),
 			Quality(0), Volume(0))
-	} else null)
+	}
 }

@@ -25,9 +25,9 @@ final case class PreferenceSettings(
 	video: Option[Video],
 	extension: String,
 	format: Format,
-	fileName: String) {
-
-	def updateFileName(name: String) = PreferenceSettings(id, audio, video, extension, format, name)
+	fileName: String,
+	progress: UUID = UUID.randomUUID) {
+	def updateFileName(name: String) = PreferenceSettings(id, audio, video, extension, format, name, progress)
 
 	def toJson: JsObject = PreferenceSettings.Implicits.write(this).asJsObject
 }
@@ -36,6 +36,7 @@ final case class PreferenceSettings(
 object PreferenceSettings extends DefaultJsonProtocol {
 	import scala.collection.mutable.ListBuffer
 	import utils.implicits.JsExtraction._
+	import utils.implicits.Primitive.GuardString
 
 	def getExtension(name: String): String = {
 		val sp = name.split("\\.")
@@ -105,27 +106,44 @@ object PreferenceSettings extends DefaultJsonProtocol {
 
 		def read(js: JsValue) = js
 			.asJsObject
-			.getFields("id", "extension", "format", "audio", "video") match {
+			.getFields("id", "extension", "audio", "format",  "video") match {
 				case Seq(JsString(id), 
 					JsString(extension), 
-					JsString(format), 
 					JsObject(audio), 
+					JsString(format), 
 					JsObject(video)) => PreferenceSettings(
 						UUID.fromString(id),
 						readAudio(audio),
 						readVideo(video),
 						extension,
-						Format(format), "")
+						Format(format), "", extractProgressId(js))
 				case Seq(JsString(id), 
 					JsString(extension),
-					JsString(format), 
-					JsObject(audio)) => PreferenceSettings(
+					JsObject(audio),
+					JsString(format)) => PreferenceSettings(
 						UUID.fromString(id),
 						readAudio(audio),
 						None,
 						extension,
-						Format(format), "")
+						Format(format), "", extractProgressId(js))
+				case Seq(JsString(id), 
+					JsString(extension),
+					JsString(format), 
+					JsObject(video)) => PreferenceSettings(
+						UUID.fromString(id),
+						None,
+						readVideo(video),
+						extension,
+						Format(format), "", extractProgressId(js))
 			}
+
+		private def extractProgressId(js: JsValue): UUID = js.asJsObject.getFields("progress_id") match {
+			case Seq(JsString(id)) => id.parseUUID match {
+				case Some(id) => id
+				case None => UUID.randomUUID 
+			} 
+			case _ => UUID.randomUUID
+		}
 
 		private def readAudio(js: Map[String, JsValue]): Option[Audio] = {
 			val errorFields = new ListBuffer[String]()

@@ -13,26 +13,20 @@ import spray.json.{
 import ws.schild.jave.encode.enums.X264_PROFILE
 
 sealed trait Codec {
-	def getEncoders: List[String]
-	def getDecoders: List[String]
+	def encoders: List[String]
+	def decoders: List[String]
 	def toJson(): JsValue
 }
 
 final case class VideoCodec(encoders: List[String], decoders: List[String]) extends Codec {
-	override def getDecoders(): List[String] = decoders
-	override def getEncoders(): List[String] = encoders
 	override def toJson(): JsObject = MediaEncoder.VideoCodec.write(this).asJsObject
 }
 
 final case class AudioCodec(encoders: List[String], decoders: List[String]) extends Codec {
-	override def getDecoders(): List[String] = decoders
-	override def getEncoders(): List[String] = encoders
 	override def toJson(): JsObject = MediaEncoder.AudioCodec.write(this).asJsObject
 }
 
 final case class Formats(encoders: List[String], decoders: List[String]) extends Codec {
-	override def getDecoders(): List[String] = decoders
-	override def getEncoders(): List[String] = encoders
 	override def toJson(): JsObject = MediaEncoder.Formats.write(this).asJsObject
 }
 
@@ -74,8 +68,8 @@ object MediaEncoder extends DefaultJsonProtocol {
 	}}
 
 	private def ed[T <: Codec](ec: T): JsObject = JsObject(
-		"encoders" -> JsArray(ec.getEncoders.map(JsString(_))),
-		"decoders" -> JsArray(ec.getDecoders.map(JsString(_))))
+		"encoders" -> JsArray(ec.encoders.map(JsString(_))),
+		"decoders" -> JsArray(ec.decoders.map(JsString(_))))
 
 	private def ed[T <: Codec](js: JsValue)(
 		action: (List[String], List[String]) => T) = js.asJsObject.getFields("encoders", "decoders") match {
