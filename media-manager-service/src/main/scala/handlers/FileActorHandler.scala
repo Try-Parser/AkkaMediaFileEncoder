@@ -19,7 +19,6 @@ import media.state.models.actors.FileActor.{
 	FileProgress,
 	GetFile,
 	Get,
-	PlayFile,
 	CompressFile,
 	FileNotFound
 }
@@ -107,7 +106,7 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 			}(sys.executionContext)
 
 	def playFile(id: UUID): Future[Response] = {
-		shards.entityRefFor(TypeKey, id.toString).ask(PlayFile)
+		shards.entityRefFor(TypeKey, id.toString).ask(GetFile)
 	}
 
 	private def extractMedia(media: MediaDescription): MultiMedia = 

@@ -1,15 +1,14 @@
 package media.service.routes
 
 import java.util.UUID
-
 import java.nio.file.Paths
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-
 import akka.NotUsed
 import akka.util.Timeout
-import akka.actor.typed.{ActorSystem, SpawnProtocol, Props, ActorRef}
+import akka.actor.typed.{ActorRef, ActorSystem, Props, SpawnProtocol}
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.{ByteString, Timeout}
@@ -17,31 +16,23 @@ import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.StatusCodes // HttpResponse
-import akka.http.scaladsl.model.ws.{ TextMessage, Message }
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpResponse, MediaType, MediaTypes, StatusCodes}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Source}
 import akka.stream.typed.scaladsl.ActorSink
-import akka.stream.scaladsl.{ Flow, Sink, Source }
-import akka.stream.{OverflowStrategy, Materializer}
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.{Materializer, OverflowStrategy}
 import akka.stream.typed.scaladsl.ActorSource
-
 import media.service.handlers.FileActorHandler
 import media.fdk.json.PreferenceSettings
 import media.state.media.MediaConverter
-import media.state.models.actors.FileActor.{ Get, FileNotFound, FileJournal, Config }
-import media.service.sinks.FileSink.{
-	messageAdapter => OnMessage,
-	onInitMessage => OnInit,
-	onFailureMessage => OnFailure,
-	Protocol,
-	Ack,
-	Complete,
-	apply => FileSink
-}
-import media.service.sinks.{ Publisher, Consumer }
+import media.state.models.actors.FileActor.{Config, FileJournal, FileNotFound, Get}
+import media.service.sinks.FileSink.{Ack, Complete, Protocol, apply => FileSink, messageAdapter => OnMessage, onFailureMessage => OnFailure, onInitMessage => OnInit}
+import media.service.sinks.{Consumer, Publisher}
+import utils.file.FileHandler
 
 // import spray.json.{ JsValue, JsNumber, JsObject, JsString }
 import spray.json._
@@ -184,9 +175,10 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 						"id" -> JsString(id.toString),
 						"reason" -> JsString("file not found.")
 					))
-				case Play(fileUriString, contentTypeString) =>
-					val dataSource: Source[ByteString, Future[IOResult]] = FileIO.fromPath(Paths.get(fileUriString))
-					val mediaType = MediaType.parse(contentTypeString).toOption.getOrElse(MediaTypes.`audio/mpeg`)
+				case Get(fileJournal, _) =>
+					val fullPath = s"${FileHandler().basePath}/${fileJournal.fullPath}/${fileJournal.fileName}"
+					val dataSource: Source[ByteString, Future[IOResult]] = FileIO.fromPath(Paths.get(fullPath))
+					val mediaType = MediaType.parse(fileJournal.contentType).toOption.getOrElse(MediaTypes.`audio/mpeg`)
 					val contentType = ContentType(MediaType.customBinary(mediaType.mainType, mediaType.subType, mediaType.comp))
 					complete(HttpResponse(StatusCodes.PartialContent, entity = HttpEntity(contentType, dataSource)))
 			}

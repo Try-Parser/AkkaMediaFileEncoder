@@ -23,7 +23,6 @@ import media.state.models.actors.FileActor.{
   ConvertedFile,
   UpdatedStatus,
   UpdateStatus,
-  PlayFile,
   CompressFile
 }
 
@@ -66,8 +65,6 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
         }(sys.executionContext)
 
         Effect.persist(ConvertedFile(convertedJournal)).thenReply(replyTo)((state: State) => state.getFileProgress)
-      case PlayFile(replyTo) =>
-        Effect.reply[Response, Event, State](replyTo)(state.playFile)
 
   }}
 

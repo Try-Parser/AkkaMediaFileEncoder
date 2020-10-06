@@ -43,7 +43,6 @@ object FileActor extends Actor[FileShard]{
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
   final case class UpdateStatus(status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command
-  final case class PlayFile(replyTo: ActorRef[Response]) extends Command
   final case class CompressFile(
     data: Array[Byte],
     fileName: String,
