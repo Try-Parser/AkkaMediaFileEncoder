@@ -1,31 +1,20 @@
 package media.service.handlers
 
 import utils.concurrent.SysLog
-import utils.traits.{
-	Command,
-	Response
-}
+import utils.traits.{ Command, Response }
+
 import java.util.UUID
 
-import akka.actor.typed.scaladsl.AskPattern.{
-	Askable,
-	schedulerFromActorSystem}
+import akka.actor.typed.scaladsl.AskPattern.{ Askable, schedulerFromActorSystem }
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ ActorSystem, SupervisorStrategy }
 
-import scala.concurrent.Future
+
+import akka.cluster.sharding.typed.scaladsl.{ ClusterSharding, Entity }
+import akka.cluster.typed.{ ClusterSingleton, SingletonActor }
+
 import akka.util.Timeout
-import akka.cluster.sharding.typed.scaladsl.{
-	ClusterSharding,
-	Entity
-}
-import akka.actor.typed.{
-	ActorSystem,
-	SupervisorStrategy
-}
-import akka.cluster.typed.{
-	ClusterSingleton,
-	SingletonActor
-}
+
 import media.state.models.actors.FileActor.{
 	AddFile,
 	CompressFile,
@@ -45,10 +34,10 @@ import media.fdk.json.{
 	PreferenceSettings
 }
 import media.state.models.actors.FileActorListModel
-import spray.json.{
-	JsObject,
-	JsString
-}
+
+import scala.concurrent.Future
+
+import spray.json.{ JsObject, JsString }
 
 
 private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSystem[_])
@@ -56,10 +45,6 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 
 	implicit private val sett = EventProcessorSettings(sys)
 	implicit private val system = sys
-
-	val regionId = com.typesafe.config.ConfigFactory
-		.load()
-		.getString("media-manager-service.region.id")
 	
 	shards.init(Entity(TypeKey)(CreateBehavior))
 
@@ -75,13 +60,13 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 	// 			), _)).map(extractMedia)(sys.executionContext)
 	// 	}(sys.executionContext)
 
-	def uploadFile(newName: String, contentType: String, regionId: UUID): Future[MultiMedia] = 
-		shards.entityRefFor(TypeKey, regionId.toString)
+	def uploadFile(newName: String, contentType: String, fileId: UUID): Future[MultiMedia] =
+		shards.entityRefFor(TypeKey, fileId.toString)
 			.ask(AddFile(File(newName, contentType, 0), _))
 			.map(extractMedia)(sys.executionContext)
 
-	def transferFile(name: String, data: Array[Byte], regionId: UUID): Future[Response] =
-		shards.entityRefFor(TypeKey, regionId.toString)
+	def transferFile(name: String, data: Array[Byte], fileId: UUID): Future[Response] =
+		shards.entityRefFor(TypeKey, fileId.toString)
 			.ask(CompressFile(data, name, _))
 
 	def getFile(fileId: UUID): Future[Response] = {

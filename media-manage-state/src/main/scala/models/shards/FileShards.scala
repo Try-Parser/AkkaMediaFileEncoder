@@ -2,13 +2,11 @@ package media.state.models.shards
 
 import java.util.UUID
 
-import utils.traits.Response
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef
-import akka.persistence.typed.scaladsl.{
-  Effect,
-  ReplyEffect
-}
+
+import akka.persistence.typed.scaladsl.{ Effect, ReplyEffect }
+
 import media.state.media.MediaConverter
 import media.state.models.actors.FileActor.{
   AddFile,
@@ -24,15 +22,16 @@ import media.state.models.actors.FileActor.{
   UpdatedStatus
 }
 import media.state.models.actors.FileActorListModel
+
 import utils.actors.ShardActor
-import utils.traits.{
-  Command,
-  Event
-}
+import utils.traits.{ Command, Event, Response }
  
 private[models] class FileShard extends ShardActor[Command, Event, State]("FileActor") { 
 
-  def processFile(fileId: UUID, self: ActorRef[Command], singleton: ActorRef[Command])(implicit sys: ActorSystem[_]): CommandHandler[ReplyEffect] = {
+  def processFile(
+    fileId: UUID,
+    self: ActorRef[Command],
+    singleton: ActorRef[Command])(implicit sys: ActorSystem[_]): CommandHandler[ReplyEffect] = {
     (state, cmd) => cmd match {
       case CompressFile(data: Array[Byte], fileName: String, replyTo) =>
         Config.writeFile(fileName, data)
@@ -75,11 +74,11 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
   def handleEvent(implicit singleton: ActorRef[Command]): EventHandler = { (state, event) => event match {
       case FileAdded(_, file) => 
         val runtime = java.lang.Runtime.getRuntime()
-        println("0000000000000000000000000000000000000000000000000000000000000000000")
-        println(s"Free Memory : ${runtime.freeMemory()}")
-        println(s"Total Memory : ${runtime.totalMemory()}")
-        println(s"Processor : ${runtime.availableProcessors()}")
-        println("0000000000000000000000000000000000000000000000000000000000000000000")
+        println(s"""
+          | Free Memory : ${runtime.freeMemory()} 
+          | Total Memory : ${runtime.totalMemory()} 
+          | Processor : ${runtime.availableProcessors()} 
+        """)
         state.insert(file)
       case ConvertedFile(file) => 
         state

@@ -10,23 +10,14 @@ import akka.actor.typed.{
   SupervisorStrategy
 }
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import akka.cluster.typed.{
-  ClusterSingleton,
-  SingletonActor
-}
+import akka.cluster.typed.{ ClusterSingleton, SingletonActor }
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.ReplyEffect
-import akka.persistence.typed.scaladsl.{
-  Effect,
-  EventSourcedBehavior,
-  RetentionCriteria
-}
+import akka.persistence.typed.scaladsl.{ Effect, EventSourcedBehavior, RetentionCriteria }
+
 import media.state.models.actors.FileActor.FileJournal
-import utils.traits.{
-  CborSerializable,
-  Command,
-  Event
-}
+
+import utils.traits.{ CborSerializable, Command, Event }
 
 import scala.concurrent.duration.DurationInt
 
@@ -36,13 +27,13 @@ object FileActorListModel {
     def getFile(key: Option[String] = None): Get =
       key match {
         case Some(key) => Get(files
-          .filter(res =>
-            res._1.fileId.toString.contains(key) ||
-            res._1.fileName.contains(key) ||
-            res._1.contentType.contains(key) ||
-            res._1.fullPath.contains(key) ||
-            res._2.contains(key)
-        ))
+          .filter { case (journal, status) =>
+            journal.fileId.toString.contains(key) ||
+            journal.fileName.contains(key) ||
+            journal.contentType.contains(key) ||
+            journal.fullPath.contains(key) ||
+            status.contains(key)
+          })
         case _ => Get(files)
       }
   }

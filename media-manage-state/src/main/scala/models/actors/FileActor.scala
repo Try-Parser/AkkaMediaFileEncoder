@@ -1,41 +1,34 @@
 package media.state.models.actors
 
 import java.util.UUID
-import akka.actor.typed.scaladsl.Behaviors
-import scala.concurrent.duration._
 import com.typesafe.config.ConfigFactory
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{
   ActorRef,
   ActorSystem,
   Behavior,
   SupervisorStrategy
 }
-import akka.cluster.sharding.typed.scaladsl.{
-  EntityContext,
-  EntityTypeKey
-}
-import akka.cluster.typed.{
-  ClusterSingleton,
-  SingletonActor
-}
+
+import akka.cluster.sharding.typed.scaladsl.{ EntityContext, EntityTypeKey }
+import akka.cluster.typed.{ ClusterSingleton, SingletonActor }
+
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{
   EventSourcedBehavior,
   RetentionCriteria
 }
 import media.state.events.EventProcessorSettings
-import media.fdk.codec.{
-  Video,
-  Audio
-}
-import media.fdk.codec.Codec.{
-  Duration,
-  Format
-}
-import media.fdk.json.PreferenceSettings
-import media.fdk.json.MediaInfo
+
+import media.fdk.codec.{ Video, Audio }
+import media.fdk.codec.Codec.{ Duration, Format }
+import media.fdk.json.{ PreferenceSettings, MediaInfo }
 import media.fdk.file.FileIOHandler
+
 import media.state.models.shards.FileShard
+
+import scala.concurrent.duration._
+
 import utils.actors.Actor
 import utils.traits.{
   CborSerializable,
