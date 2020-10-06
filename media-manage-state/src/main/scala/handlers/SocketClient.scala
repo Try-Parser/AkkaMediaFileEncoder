@@ -13,12 +13,12 @@ import akka.stream.typed.scaladsl.ActorSource
 import akka.stream.scaladsl.Keep
 import akka.http.scaladsl.model.StatusCodes
 
-class SocketClient(uri: String)(implicit sys: ActorSystem[_]) {
-	val req = WebSocketRequest(uri = uri)
-	val flow = Http().webSocketClientFlow(req)
+object SocketClient {
 
-	val source: Source[Message, ActorRef[TextMessage.Strict]] = 
-		ActorSource.actorRef[TextMessage.Strict](
+	val req = WebSocketRequest(uri = "ws://localhost:8061/media.v1")
+
+	val source: Source[Message, ActorRef[Message]] = 
+		ActorSource.actorRef[Message](
 			PartialFunction.empty,
 			PartialFunction.empty,
 			10,
@@ -30,23 +30,21 @@ class SocketClient(uri: String)(implicit sys: ActorSystem[_]) {
 			.map(msg => println(s"reply : $msg"))
 			.to(Sink.ignore)
 
-	val ((ws, upgrade), closed) = 
-		source
-			.viaMat(flow)(Keep.both)
-			.toMat(sink)(Keep.both)
-			.run()
+	def getFlow()(implicit system: ActorSystem[_]): (ActorRef[Message], Future[Done]) = {
+		val flow = Http().webSocketClientFlow(req)
+		val ((ws, upgrade), closed) = 
+			source
+				.viaMat(flow)(Keep.both)
+				.toMat(sink)(Keep.both)
+				.run()
 
-	val connected = upgrade.flatMap { upg => 
-		if(upg.response.status == StatusCodes.SwitchingProtocols)
-			Future.successful(Done)
-		else 
-			throw new RuntimeException(s"Connection failed: ${upg.response.status}")
-	}(sys.executionContext)
+		val connected = upgrade.flatMap { upg => 
+			if(upg.response.status == StatusCodes.SwitchingProtocols)
+				Future.successful(Done)
+			else 
+				throw new RuntimeException(s"Connection failed: ${upg.response.status}")
+		}(system.executionContext)
 
-	def socket = ws
-}
-
-object SocketClient {
-	def apply(uri: String = "ws://localhost:8061/media.v1")(implicit system: ActorSystem[_]) =
-		new SocketClient(uri).socket
+		(ws, connected)
+	}
 }
