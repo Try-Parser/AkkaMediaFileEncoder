@@ -15,7 +15,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes // HttpResponse
-import akka.http.scaladsl.model.ws.{ TextMessage, Message }
+import akka.http.scaladsl.model.ws.{ TextMessage, Message, BinaryMessage }
 import akka.stream.typed.scaladsl.ActorSink
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import akka.stream.{OverflowStrategy, Materializer}
@@ -75,6 +75,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 					case TextMessage.Strict(msg) => 
 						println("Strict message pass only")
 						Consumer.Incomming(msg)
+					case bs: BinaryMessage => Consumer.Disconnected
 				}.to(
 					ActorSink.actorRef[Consumer.Event](
 						consumerRef,

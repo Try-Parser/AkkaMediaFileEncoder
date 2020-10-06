@@ -52,6 +52,7 @@ object Publisher {
 			} 
 		}.receiveSignal {
 			case (_, Terminated(consumer)) =>
+				println(s"$consumer is Terminated")
 				val consumerF = consumers.filterNot(_._2 == consumer)
 				run(consumerF)
 		}
