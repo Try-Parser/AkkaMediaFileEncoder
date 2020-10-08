@@ -16,7 +16,7 @@ final case class Video(
 	codec: CodecName, 
 	size: VideoSize,
 	tag: Tag,
-	profile: X264_PROFILE = X264_PROFILE.BASELINE
+	profile: Option[String]
 ) extends utils.traits.CborSerializable
 
 object Video {
@@ -26,6 +26,7 @@ object Video {
 			FrameRate(v.getFrameRate()),
 			CodecName(v.getDecoder()),
 			v.getSize(),
-			Tag(""))
+			Tag(""),
+			None)
 	}
 }

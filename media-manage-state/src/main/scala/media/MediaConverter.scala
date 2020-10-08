@@ -1,23 +1,16 @@
 package media.state.media
 
-import java.nio.file.{ Files, Paths }
+import java.nio.file.{Files, Paths}
 
 import scala.concurrent.Future
-
 import akka.actor.typed.ActorSystem
-
-import ws.schild.jave.{ Encoder, MultimediaObject }
-import ws.schild.jave.encode.{ 
-	AudioAttributes, 
-	VideoAttributes, 
-	EncodingAttributes 
-}
-
-import media.fdk.codec.{ Video, Audio }
-import media.fdk.json.{ PreferenceSettings, MediaEncoder, VideoCodec, AudioCodec, Formats }
+import ws.schild.jave.{Encoder, MultimediaObject}
+import ws.schild.jave.encode.{AudioAttributes, EncodingAttributes, VideoAttributes}
+import media.fdk.codec.{Audio, Video}
+import media.fdk.json.{AudioCodec, Formats, MediaEncoder, PreferenceSettings, VideoCodec}
 import media.state.media.Progress
-
 import utils.implicits.Primitive._
+import ws.schild.jave.encode.enums.X264_PROFILE
 
 object MediaConverter {
 	import scala.concurrent.ExecutionContext.Implicits.global
@@ -77,7 +70,7 @@ object MediaConverter {
 		v.codec.value.nonEmptyString.map(video.setCodec(_))
 		v.tag.value.nonEmptyString.map(video.setTag(_))
 		video.setSize(v.size)
-		video.setX264Profile(v.profile);
+		v.profile.map(res => video.setX264Profile(X264_PROFILE.valueOf(res)))
 		video
 	}
 
