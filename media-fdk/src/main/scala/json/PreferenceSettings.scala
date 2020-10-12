@@ -200,9 +200,14 @@ object PreferenceSettings extends DefaultJsonProtocol {
 				case _ => Tag("")
 			})
 
-			val profile: X264_PROFILE = js.extractNonRequired[X264_PROFILE]("profile", X264_PROFILE.BASELINE)({
-				case JsString(value) => X264_PROFILE.valueOf(value.toUpperCase.toString)
-				case _ => X264_PROFILE.BASELINE 
+//			val profile: X264_PROFILE = js.extractNonRequired[X264_PROFILE]("profile", X264_PROFILE.BASELINE)({
+//				case JsString(value) => X264_PROFILE.valueOf(value.toUpperCase.toString)
+//				case _ => X264_PROFILE.BASELINE
+//			})
+
+			val profile: Option[String] = js.extractNonRequired[Option[String]]("profile", None)({
+				case JsString(value) => Some(value)
+				case _ => None
 			})
 
 			val size: VideoSize = js.extract[VideoSize]("size", new VideoSize(0, 0))({
