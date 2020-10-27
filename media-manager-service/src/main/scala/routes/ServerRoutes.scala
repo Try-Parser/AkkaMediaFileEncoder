@@ -2,62 +2,32 @@ package media.service.routes
 
 import java.util.UUID
 
-import media.state.models.actors.FileActorListModel
-
-import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.{ Failure, Success }
-
 import akka.NotUsed
-import akka.util.Timeout
-import akka.actor.typed.{
-	ActorSystem,
-	SpawnProtocol,
-	Props,
-	ActorRef
-}
 import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem, Props, SpawnProtocol}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.headers.`Content-Type`
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
+import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.StatusCodes // HttpResponse
-import akka.http.scaladsl.model.ws.{ TextMessage, Message, BinaryMessage }
-import akka.stream.typed.scaladsl.ActorSink
-import akka.stream.scaladsl.{ Flow, Sink, Source }
-import akka.stream.{OverflowStrategy, Materializer}
-import akka.stream.typed.scaladsl.ActorSource
-
-import media.service.handlers.FileActorHandler
-
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.typed.scaladsl.{ActorSink, ActorSource}
+import akka.stream.{Materializer, OverflowStrategy}
+import akka.util.Timeout
 import media.fdk.json.PreferenceSettings
-
+import media.service.handlers.FileActorHandler
+import media.service.sinks.FileSink.{Ack, Complete, Protocol, apply => FileSink, messageAdapter => OnMessage, onFailureMessage => OnFailure, onInitMessage => OnInit}
+import media.service.sinks.{Consumer, Publisher}
 import media.state.media.MediaConverter
-import media.state.models.actors.FileActor.{
-	Get,
-	FileNotFound,
-	FileJournal,
-	Config
-}
+import media.state.models.actors.FileActor.{Config, FileJournal, FileNotFound, Get}
+import media.state.models.actors.{FileActor, FileActorListModel}
+import spray.json.{JsNumber, JsObject, JsString, JsValue, _}
 
-import media.service.sinks.FileSink.{
-	messageAdapter => OnMessage,
-	onInitMessage => OnInit,
-	onFailureMessage => OnFailure,
-	Protocol,
-	Ack,
-	Complete,
-	apply => FileSink
-}
-import media.service.sinks.{ Publisher, Consumer }
-
-import spray.json._
-import spray.json.{
-	JsValue,
-	JsNumber,
-	JsObject,
-	JsString
-}
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 private[service] final class ServiceRoutes(system: ActorSystem[_]) extends SprayJsonSupport {
 
@@ -106,18 +76,14 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 					)
 				)
 
-			val outGoing: Source[Message, NotUsed] = 
+			val outGoing: Source[Message, ActorRef[Consumer.Event]] =
 				ActorSource.actorRef[Consumer.Event](
 					PartialFunction.empty,
 					PartialFunction.empty,
 					10,
 					OverflowStrategy.fail
-				).mapMaterializedValue { out => 
-					println("Handshake established.")
-					consumerRef ! Consumer.Connected(UUID.randomUUID, out)
-					NotUsed
-				}.map { 
-					case Consumer.Outgoing(msg) => TextMessage(msg) 
+				).map {
+					case Consumer.Outgoing(msg) => TextMessage(msg)
 				}
 
 				Flow.fromSinkAndSourceCoupled(inComming, outGoing)
@@ -138,8 +104,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 						val regionId = UUID.randomUUID
 
 						val sink = ActorSink.actorRefWithBackpressure(
-							ref = system.systemActorOf[Protocol](
-								FileSink(fileActorHandler, name, regionId),
+							ref = system.systemActorOf[Protocol](FileSink(fileActorHandler, name, regionId),
 								s"file-sink-${regionId}"),
 							OnMessage,
 							OnInit,
@@ -183,7 +148,7 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	//test for play
 	val convertStatus: Route =  path("status" / JavaUUID) { id =>
 		get {
-			import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
+			import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 			complete(HttpEntity(
 				ContentTypes.`text/html(UTF-8)`,
 				"<audio controls> "+
@@ -194,16 +159,18 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 		}
 	}
 
-	//need revise for play
 	val playFile: Route = path("play" / JavaUUID) { id =>
 		get {
-			complete("playFile")
-			// onComplete(fileActorHandler.play(id)) {
-			// 	case Success(Some(file)) => 
-			// 		complete(HttpResponse(entity = FileHandler.getChunked(s"${file.fileName}.${file.ext}")))
-			// 	case Success(None) => complete(s"Unable to find your file id: $id")
-			// 	case Failure(e) => complete(e.toString)
-			// }
+			onComplete(fileActorHandler.playFile(id)) {
+				case Success(value) => value match {
+					case FileActor.Play(sourceRef, contentTypeString, _) =>
+						`Content-Type`.parseFromValueString(contentTypeString) match {
+							case Right(value) => complete(HttpResponse(entity = HttpEntity(value.contentType, sourceRef.source)))
+							case Left(value) 	=> complete(s"Content-Type: $value is invalid")
+						}
+				}
+				case Failure(exception) => complete(s"Error: ${exception.getLocalizedMessage}")
+			}
 		}
 	}
 

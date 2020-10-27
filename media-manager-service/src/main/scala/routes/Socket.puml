@@ -1,0 +1,41 @@
+@startuml
+actor Client
+participant ServerRoutes
+participant AkkaStreamActor as AkkaStream
+actor Consumer
+actor Publisher
+actor SpawnControl
+
+group init
+ServerRoutes -> Publisher : spawn
+note over Publisher : can receive\nRegister,\nInOut,\nSendTo
+ServerRoutes -> SpawnControl : spawn
+SpawnControl -> Consumer : spawn, send Publisher ActorRef
+note over Consumer : can receive Connected
+end
+
+Client -> ServerRoutes : ws://localhost:8061/media.v1
+Consumer --> AkkaStream : Consumer ref
+ServerRoutes --> AkkaStream : connect
+AkkaStream -> Consumer : Consumer.Connected
+Consumer -> Publisher : Publisher.Register
+Consumer -> Consumer : change state
+note over Consumer : can receive\nIncoming,\nOutgoing,\nDisconnected
+Publisher -> Publisher : change state, \nadd Consumer ref
+Publisher -> Publisher : adapt message
+note over Publisher : Publisher.Register is now\nConsumer.Outgoing
+Publisher --> Consumer : Consumer.Outgoing
+Consumer -> AkkaStream : Consumer.Outgoing
+AkkaStream -> ServerRoutes : TextMessage
+
+
+Client -> ServerRoutes : http://play
+ServerRoutes -> AkkaStream : TextMessage.Strict
+AkkaStream -> Consumer : Consumer.Incoming
+Consumer -> Publisher : Publisher.SendTo
+note over Publisher : Publisher.SendTo is now\nConsumer.Outgoing
+Publisher -> Consumer : Consumer.Outgoing
+Consumer -> AkkaStream : Consumer.Outgoing
+AkkaStream -> ServerRoutes : TextMessage
+
+@enduml

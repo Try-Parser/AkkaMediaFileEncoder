@@ -4,27 +4,12 @@ import java.util.UUID
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef
-
-import akka.persistence.typed.scaladsl.{ Effect, ReplyEffect }
-
+import akka.persistence.typed.scaladsl.{Effect, ReplyEffect}
 import media.state.media.MediaConverter
-import media.state.models.actors.FileActor.{
-  AddFile,
-  CompressFile,
-  Config,
-  ConvertFile,
-  ConvertedFile,
-  FileAdded,
-  FileJournal,
-  GetFile,
-  State,
-  UpdateStatus,
-  UpdatedStatus
-}
+import media.state.models.actors.FileActor.{AddFile, CompressFile, Config, ConvertFile, ConvertedFile, FileAdded, FileJournal, GetFile, PlayFile, State, UpdateStatus, UpdatedStatus}
 import media.state.models.actors.FileActorListModel
-
 import utils.actors.ShardActor
-import utils.traits.{ Command, Event, Response }
+import utils.traits.{Command, Event, Response}
  
 private[models] class FileShard extends ShardActor[Command, Event, State]("FileActor") { 
 
@@ -51,6 +36,8 @@ private[models] class FileShard extends ShardActor[Command, Event, State]("FileA
           })
       case GetFile(replyTo) =>
         Effect.reply[Response, Event, State](replyTo)(state.getFile)
+      case PlayFile(replyTo) =>
+        Effect.reply[Response, Event, State](replyTo)(state.playFile(replyTo, sys))
       case UpdateStatus(file, status) =>
         Effect.persist[Event, State](UpdatedStatus(file, status)).thenNoReply
       case ConvertFile(mm, replyTo) =>
