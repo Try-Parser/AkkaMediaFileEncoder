@@ -6,7 +6,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef
 import akka.persistence.typed.scaladsl.{Effect, ReplyEffect}
 import media.state.media.MediaConverter
-import media.state.models.actors.FileActor.{AddFile, CompressFile, Config, ConvertFile, ConvertedFile, FileAdded, FileJournal, GetFile, PlayFile, State, UpdateStatus, UpdatedStatus}
+import media.state.models.actors.FileActor._
 import media.state.models.actors.FileActorListModel
 import utils.actors.ShardActor
 import utils.traits.{Command, Event, Response}

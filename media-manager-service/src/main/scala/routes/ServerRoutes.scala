@@ -162,13 +162,11 @@ private[service] final class ServiceRoutes(system: ActorSystem[_]) extends Spray
 	val playFile: Route = path("play" / JavaUUID) { id =>
 		get {
 			onComplete(fileActorHandler.playFile(id)) {
-				case Success(value) => value match {
-					case FileActor.Play(sourceRef, contentTypeString, _) =>
-						`Content-Type`.parseFromValueString(contentTypeString) match {
-							case Right(value) => complete(HttpResponse(entity = HttpEntity(value.contentType, sourceRef.source)))
-							case Left(value) 	=> complete(s"Content-Type: $value is invalid")
-						}
-				}
+				case Success(FileActor.Play(sourceRef, contentTypeString, _)) =>
+					`Content-Type`.parseFromValueString(contentTypeString) match {
+						case Right(value) => complete(HttpResponse(entity = HttpEntity(value.contentType, sourceRef.source)))
+						case Left(value) 	=> complete(s"Content-Type: $value is invalid")
+					}
 				case Failure(exception) => complete(s"Error: ${exception.getLocalizedMessage}")
 			}
 		}
