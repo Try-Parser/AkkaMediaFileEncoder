@@ -2,8 +2,10 @@ package utils.file
 
 import java.util.UUID
 import java.time.Instant
-import java.io.File
-import com.typesafe.config.{ Config, ConfigFactory }
+import java.io.{File, FileNotFoundException}
+import java.nio.file.{Files, Path, Paths}
+
+import com.typesafe.config.{Config, ConfigFactory}
 
 case class FileHandler(config: Config) {
 	lazy val basePath: String = config.getString("file-directory.base-path")
@@ -24,6 +26,17 @@ case class FileHandler(config: Config) {
 
 	def generateName(oldName: String, ext: String): String = 
 		s"${UUID.randomUUID.toString}-${Instant.now.getEpochSecond.toString}.$ext"
+
+	def getPath(fileName: String): Either[Throwable, Path] = {
+		val uploadedFilePath = s"$basePath/$uploadFilePath/$fileName"
+		val convertedFilePath = s"$basePath/$convertFilePath/$fileName"
+
+		if (Files.exists(Paths.get(convertedFilePath)))
+			Right(Paths.get(convertedFilePath))
+		else if (Files.exists(Paths.get(uploadedFilePath)))
+			Right(Paths.get(uploadedFilePath))
+		else Left(new FileNotFoundException())
+	}
 }
 
 object FileHandler {

@@ -1,42 +1,28 @@
 package media.state.models.actors
 
 import java.util.UUID
-import com.typesafe.config.ConfigFactory
+
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{
-  ActorRef,
-  ActorSystem,
-  Behavior,
-  SupervisorStrategy
-}
-
-import akka.cluster.sharding.typed.scaladsl.{ EntityContext, EntityTypeKey }
-import akka.cluster.typed.{ ClusterSingleton, SingletonActor }
-
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, SupervisorStrategy}
+import akka.cluster.sharding.typed.scaladsl.{EntityContext, EntityTypeKey}
+import akka.cluster.typed.{ClusterSingleton, SingletonActor}
 import akka.persistence.typed.PersistenceId
-import akka.persistence.typed.scaladsl.{
-  EventSourcedBehavior,
-  RetentionCriteria
-}
-import media.state.events.EventProcessorSettings
-
-import media.fdk.codec.{ Video, Audio }
-import media.fdk.codec.Codec.{ Duration, Format }
-import media.fdk.json.{ PreferenceSettings, MediaInfo }
+import akka.persistence.typed.scaladsl.{EventSourcedBehavior, RetentionCriteria}
+import akka.stream.SourceRef
+import akka.util.ByteString
+import com.typesafe.config.ConfigFactory
+import handlers.FileManager
+import media.fdk.codec.Codec.{Duration, Format}
+import media.fdk.codec.{Audio, Video}
 import media.fdk.file.FileIOHandler
-
+import media.fdk.json.{MediaInfo, PreferenceSettings}
+import media.state.events.EventProcessorSettings
 import media.state.models.shards.FileShard
+import utils.actors.Actor
+import utils.file.{ContentType => UtilContentType}
+import utils.traits.{CborSerializable, Command, Event, Response}
 
 import scala.concurrent.duration._
-
-import utils.actors.Actor
-import utils.traits.{
-  CborSerializable,
-  Command,
-  Event,
-  Response
-}
-import utils.file.ContentType
 
 object FileActor extends Actor[FileShard]{
 
@@ -49,6 +35,7 @@ object FileActor extends Actor[FileShard]{
   final case class GetFileById(fileId: UUID, replyTo: ActorRef[MediaDescription]) extends Command
   final case class UpdateStatus(file: FileJournal, status: String) extends Command
   final case class GetFile(replyTo: ActorRef[Response]) extends Command
+  final case class PlayFile(replyTo: ActorRef[Response]) extends Command
   final case class CompressFile(
     data: Array[Byte], 
     fileName: String, 
@@ -81,11 +68,21 @@ object FileActor extends Actor[FileShard]{
         file.fileName,
         media._1,
         media._2,
-        ContentType(file.contentType),
+        UtilContentType(file.contentType),
         file.status,
         file.fileId
       ))
     }
+
+    def playFile(replyTo: ActorRef[Response], actorSystem: ActorSystem[_]): Response = {
+      Option(file.fileId) match {
+        case Some(_) =>
+          val sourceRef = FileManager.play(file)(actorSystem)
+          Play(sourceRef, file.contentType, isComplete)
+        case None => FileNotFound
+      }
+    }
+
   }
 
   object State {
@@ -125,6 +122,7 @@ object FileActor extends Actor[FileShard]{
   }
    
   final case class Get(journal: FileJournal, status: String) extends Response
+  final case class Play(sourceRef: SourceRef[ByteString], contentType: String, status: String) extends Response
 
   /*** INI ***/
   val TypeKey: EntityTypeKey[Command] = EntityTypeKey[Command](actor.actorName)

@@ -2,19 +2,12 @@ package media.service.sinks
 
 import java.util.UUID
 
-// import akka.stream.scaladsl.Flow
-import akka.actor.typed.Behavior
-import akka.actor.typed.ActorRef
-import akka.actor.typed.scaladsl.Behaviors
-// import akka.http.scaladsl.model.ws.Message
-// import akka.stream.typed.scaladsl.ActorSource
-// import akka.stream.CompletionStrategy
-// import akka.stream.scaladsl.Source
-// import akka.actor.Status.Success
-import akka.actor.typed.Terminated
-// import akka.actor.typed.scaladsl.ActorContext
-import spray.json._
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior, Terminated}
 import spray.json.DefaultJsonProtocol._
+import spray.json._
+
+import scala.util.{Failure, Success, Try}
 
 sealed trait Protocol
 sealed trait Event 
@@ -85,33 +78,29 @@ object Consumer {
 	def apply(pub: ActorRef[Publisher.Protocol]): Behavior[Event] = 
 		Behaviors.setup { ctx => 
 			Behaviors.receiveMessagePartial {
-				case Connected(id, out) => 
-					pub ! Publisher.Register(id, ctx.messageAdapter {
-						case Publisher.InOut(msg) => Outgoing(msg)
-						case Publisher.Register(id, _) => Outgoing(s"""{ id: "$id" }""")
-						case Publisher.SendTo(id, msg) => Outgoing(s"""{ id: "$id", msg: "$msg" }""")
-					})
+				case Connected(id, out) =>
+					pub ! Publisher.Register(id, consumerToPublisherAdapterRef(ctx))
 					channel(pub, out)
 			}
 		}
 
-	private def channel(
-		pub: ActorRef[Publisher.Protocol], 
-		out: ActorRef[Event]
-	): Behavior[Event] = Behaviors.receiveMessagePartial {
+	private def consumerToPublisherAdapterRef(ctx: ActorContext[Consumer.Event]): ActorRef[Publisher.Protocol] = ctx.messageAdapter {
+		case Publisher.InOut(msg)			 	=> Outgoing(msg)
+		case Publisher.Register(id, _) 	=> Outgoing(s"""{ id: "$id" }""")
+		case Publisher.SendTo(id, msg) 	=> Outgoing(s"""{ id: "$id", msg: "$msg" }""")
+	}
+
+	private def channel(pub: ActorRef[Publisher.Protocol], out: ActorRef[Event]): Behavior[Event] = Behaviors.receiveMessagePartial {
 		case Incomming(msg) =>
-			try {
-				val cmd = msg.parseJson.convertTo[Command]
-				pub ! Publisher.SendTo(cmd.id, cmd.msg)
-			} catch {
-				case _: Throwable => out ! Outgoing(s""" { "error": "invalid command." } """)
+      Try(msg.parseJson.convertTo[Command]) match {
+        case Failure(_: Throwable) => out ! Outgoing(s""" { "error": "invalid command." } """)
+        case Success(cmd)          => pub ! Publisher.SendTo(cmd.id, cmd.msg)
 			}
 			Behaviors.same
 		case msg: Outgoing =>
 			out ! msg
 			Behaviors.same
 		case Disconnected =>
-			// out ! Disconnected
 			Behaviors.stopped
 	}
 }

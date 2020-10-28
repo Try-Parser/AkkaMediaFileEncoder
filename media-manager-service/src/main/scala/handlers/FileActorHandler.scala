@@ -1,43 +1,22 @@
 package media.service.handlers
 
-import utils.concurrent.SysLog
-import utils.traits.{ Command, Response }
-
 import java.util.UUID
 
-import akka.actor.typed.scaladsl.AskPattern.{ Askable, schedulerFromActorSystem }
+import akka.actor.typed.scaladsl.AskPattern.{Askable, schedulerFromActorSystem}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ ActorSystem, SupervisorStrategy }
-
-
-import akka.cluster.sharding.typed.scaladsl.{ ClusterSharding, Entity }
-import akka.cluster.typed.{ ClusterSingleton, SingletonActor }
-
+import akka.actor.typed.{ActorSystem, SupervisorStrategy}
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
+import akka.cluster.typed.{ClusterSingleton, SingletonActor}
 import akka.util.Timeout
-
-import media.state.models.actors.FileActor.{
-	AddFile,
-	CompressFile,
-	ConvertFile,
-	File,
-	FileNotFound,
-	FileProgress,
-	Get,
-	GetFile,
-	MediaDescription,
-	TypeKey,
-	createBehavior => CreateBehavior
-}
+import media.fdk.json.{MultiMedia, PreferenceSettings}
 import media.state.events.EventProcessorSettings
-import media.fdk.json.{
-	MultiMedia,
-	PreferenceSettings
-}
+import media.state.models.actors.FileActor.{AddFile, CompressFile, ConvertFile, File, FileNotFound, FileProgress, Get, GetFile, MediaDescription, PlayFile, TypeKey, createBehavior => CreateBehavior}
 import media.state.models.actors.FileActorListModel
+import spray.json.{JsObject, JsString}
+import utils.concurrent.SysLog
+import utils.traits.{Command, Response}
 
 import scala.concurrent.Future
-
-import spray.json.{ JsObject, JsString }
 
 
 private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSystem[_])
@@ -90,6 +69,10 @@ private[service] class FileActorHandler(shards: ClusterSharding, sys: ActorSyste
 		
 		shards.entityRefFor(TypeKey, fileId.toString)
 			.ask(GetFile(_))
+	}
+
+	def playFile(fileId: UUID): Future[Response] = {
+		shards.entityRefFor(TypeKey, fileId.toString).ask(PlayFile)
 	}
 
 	val singletonActor =
